@@ -10,7 +10,7 @@
 [![Gemini Version](https://img.shields.io/badge/Gemini-2.5--Flash-orange.svg?logo=google)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**An adaptive, beautiful, and intelligence-driven life co-pilot that coordinates your tasks, habits, plans, and long-term goals into one elegant, glassmorphic obsidian dashboard.**
+**An adaptive, beautiful, and intelligence-driven life co-pilot that coordinates your tasks, habits, plans, and long-term goals into one elegant, glassmorphic dashboard.**
 
 [Explore App](#-architecture-overview) • [Installation](#-installation--setup) • [Deployment](#-deployment-guide) • [Highlights](#-project-highlights)
 
@@ -34,7 +34,7 @@ In today’s fast-paced world, managing tasks, daily habits, calendar events, an
 * **🔐 Authentication & User Isolation**: Resilient signup, login, and token session persistence built on Supabase Auth. Complete tenant isolation secures user accounts using Supabase Row Level Security (RLS) policies.
 * **📝 Smart Task Triage**: Create, edit, and organize tasks with dynamic tags, due dates, colors, and priority weightings (`low`, `med`, `high`).
 * **🌱 Habit Compliance**: Track daily habits with checklist completions. Streaks and consistency ratios are calculated automatically using historical logs over rolling 30-day windows.
-* **🎯 Goal Progress Tracking**: Exposes Career, Learning, Health, and Personal category goals with automated checkbox progress percentages rendered directly on KPIs.
+* **🎯 Goal Progress Tracking**: Exposes Career, Learning, Health, and Personal category goals with automated progress percentages rendered directly on KPIs.
 * **📅 AI Planner with Working Hours**: Set custom daily working boundaries (e.g. `10:00` to `16:00`), preferred focus durations, and break rules. Gemini generates complete plans fitting strictly within these slots.
 * **🤖 AI Assistant Workspace Copilot**: Multiturn chat leveraging Gemini 2.5 Flash for proactive briefs, standup reviews, offline-ready fallback templates, and interactive chat confirmation cards to update or delete tasks safely.
 * **📊 Analytics KPI Dashboards**: KPI analytics reporting today's success score, AI life balance metrics, habit streaks, 14-day productivity trends, and comprehensive weekly retrospect reviews.
@@ -45,29 +45,10 @@ In today’s fast-paced world, managing tasks, daily habits, calendar events, an
 
 ---
 
-## 📸 3. Screenshots (Mockups / Placeholders)
-
-### 🌌 Landing Page
-*(Placeholder for landing page mockup: Premium neon gradient text, CTA, and dynamic card illustrations)*
-
-### 📊 Dashboard
-*(Placeholder for core dashboard workspace: AI Briefing panel, timeline, and glassmorphic stats widgets)*
-
-### 📅 AI Planner
-*(Placeholder for AI Planner view: Working hours control panel, date slider, and optimized block lists)*
-
-### 📈 Productivity Analytics
-*(Placeholder for Analytics layout: KPI metric dials, Recharts lines, and AI Weekly wins logs)*
-
-### 🤖 Workspace Assistant
-*(Placeholder for AI Assistant view: Multiturn chat, factual fallback logs, and interactive action blocks)*
-
----
-
-## 🛠️ 4. Tech Stack
+## 🛠️ 3. Tech Stack
 
 ### Frontend
-* **Core**: React 19, TypeScript 5, Vite 6
+* **Core Framework**: React 19, TypeScript 5, Vite 6
 * **Routing**: TanStack Router (`@tanstack/react-router`) for type-safe route trees
 * **Caching & Queries**: TanStack Query (`@tanstack/react-query`) for local caching and server state updates
 * **Styling**: Tailwind CSS v4, Lucide React (for premium typography and icons)
@@ -75,15 +56,15 @@ In today’s fast-paced world, managing tasks, daily habits, calendar events, an
 
 ### Backend
 * **Environment**: Node.js, Express, TypeScript
-* **Security & Logs**: Helmet (secure headers), Winston + Morgan (structured logging pipelines)
+* **Security & Logs**: Helmet (secure headers), Winston + Morgan (structured logging pipelines), express-rate-limit
 
 ### Infrastructure & Services
 * **Database & Auth**: Supabase (Postgres, GoTrue Auth)
-* **AI Model**: Google Gemini API (leveraging `gemini-2.5-flash` for high-speed planning)
+* **AI Model**: Google Gemini API (leveraging `gemini-2.5-flash` for high-speed planning and `gemini-2.5-flash-lite` as high-availability fallback)
 
 ---
 
-## 🏛️ 5. Architecture Overview
+## 🏛️ 4. Architecture Overview
 
 FlowPilot AI follows a robust, decoupling multi-tier architecture to ensure rapid client performance, data consistency, and reliable offline capabilities:
 
@@ -108,7 +89,7 @@ graph TD
 
 ---
 
-## 🗄️ 6. Database Design
+## 🗄️ 5. Database Design
 
 FlowPilot AI relies on a structured, relational PostgreSQL schema. Complete row-level isolation is configured:
 
@@ -119,12 +100,12 @@ FlowPilot AI relies on a structured, relational PostgreSQL schema. Complete row-
 | **`habits`** | Daily habits tracked over time | `id` (PK), `user_id` (FK), `name`, `color`, `streak`, `habit_consistency` |
 | **`goals`** | Long-term outcomes targeted by the user | `id` (PK), `user_id` (FK), `title`, `description`, `status`, `progress`, `type` |
 | **`notifications`**| Alerts scanned and raised dynamically | `id` (PK), `user_id` (FK), `title`, `message`, `priority`, `read` |
-| **`schedule_blocks`**| Optimized timeline slots drafted by the AI planner | `id` (PK), `user_id` (FK), `label`, `start_time`, `end_time`, `type`, `color`, `date` |
-| **`ai_insights`** | Generated briefings, performance retrospectives, and Wins logs | `id` (PK), `user_id` (FK), `type`, `insights`, `created_at` |
+| **`schedule_blocks`**| Optimized timeline slots drafted by the AI planner | `id` (PK), `user_id` (FK), `title`, `start_time`, `end_time`, `block_type`, `color` |
+| **`habit_logs`** | Complete history of habit checks | `id` (PK), `habit_id` (FK), `user_id` (FK), `completed_at` |
 
 ---
 
-## ⚙️ 7. Environment Variables
+## ⚙️ 6. Environment Variables
 
 ### Frontend Setup (`/src` root)
 Create a `.env` file at the project root containing:
@@ -147,7 +128,7 @@ CLIENT_ORIGIN=http://localhost:5173
 
 ---
 
-## 🚀 8. Installation & Setup
+## 🚀 7. Installation & Setup
 
 ### Prerequisites
 * Node.js (v18+)
@@ -174,7 +155,7 @@ npm install
 
 ---
 
-## 🏃‍♂️ 9. Running Locally
+## 🏃‍♂️ 8. Running Locally
 
 To start the local sandbox environment, run the frontend and backend servers concurrently:
 
@@ -190,69 +171,26 @@ In the project root folder:
 ```bash
 npm run dev
 ```
-*The client SPA will boot on port `5173` (or `8080` depending on system proxy mapping).*
+*The client SPA will boot on port `5173`.*
 
-Open your browser and navigate to `http://localhost:5173` (or `http://localhost:8080`) to interact with FlowPilot AI.
-
----
-
-## 📤 10. Deployment Guide
-
-### Frontend Deployment (Vercel)
-1. Link your GitHub repository to **Vercel**.
-2. Select the repository root directory.
-3. Configure the build settings:
-   * **Build Command**: `npm run build`
-   * **Output Directory**: `dist/client`
-4. Inject your environment variables:
-   * `VITE_SUPABASE_URL`
-   * `VITE_SUPABASE_ANON_KEY`
-   * `VITE_API_URL` (Points to your deployed Render API backend URL)
-5. Click **Deploy**.
-
-### Backend Deployment (Render)
-1. Create a new **Web Service** on Render.
-2. Select your repository and specify the subfolder as `backend`.
-3. Configure build and environment parameters:
-   * **Runtime**: `Node`
-   * **Build Command**: `npm run build`
-   * **Start Command**: `node dist/index.js`
-4. Set the environment variables in your Render Dashboard:
-   * `NODE_ENV` ➔ `production`
-   * `PORT` ➔ `8080` (or dynamic bind)
-   * `SUPABASE_URL`
-   * `SUPABASE_SERVICE_ROLE_KEY`
-   * `GEMINI_API_KEY`
-   * `CLIENT_ORIGIN` (Your deployed Vercel frontend URL)
-5. Click **Create Web Service**.
+Open your browser and navigate to `http://localhost:5173` to interact with FlowPilot AI.
 
 ---
 
-## 💡 11. Project Highlights & Quality Measures
+## 📤 9. Deployment Guide
+
+Refer to the complete [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) in the `/docs` directory for deployment blueprints to Vercel, Render, Railway, Docker, and Cloudflare.
+
+---
+
+## 💡 10. Project Highlights & Quality Measures
 
 * **Zero-Flash Dark Theme Persistence**: Incorporates an inline script inside the root document `<head>` parsing theme storage instantly at boot time, preventing ugly "white flashes" on page refreshes.
-* **Seamless Seeding Engine**: A robust seeder is bundled. Trigger **Enable Demo Mode** on the dashboard to populate a complex visual timeline of tasks, habits, and active goals tailored for premium presentation.
+* **Seamless Seeding Engine**: A robust seeder is bundled. Trigger **Enable Demo Mode** on the settings or dashboard page to populate a complex visual timeline of tasks, habits, and active goals tailored for premium presentation.
 * **Offline Resilient Architecture**: The AI Assistant contains offline-ready local commands processing engines ("Start my day", "Show my goals") executing instantly in 40ms without sending a single network packet, safeguarding workflows from LLM limits or network failure.
 
 ---
 
-## 🔮 12. Future Improvements
-* **Bidirectional Calendar Syncing**: Support full calDav sync loops to update external Google, Outlook, and Apple Calendar events dynamically when plan blocks shift.
-* **Proactive Voice Briefing**: Incorporate Web Speech synthesis to deliver custom spoken standups summaries during morning routines.
-* **Team Synergy Boards**: Enable collaborative workspaces and task delegation across family or developer panels, retaining complete individual privacy controls.
-
----
-
-## 📄 13. License
+## 📄 11. License
 
 Distributed under the **MIT License**. See `LICENSE` for more information.
-
----
-
-## 👥 14. Authors & Contributors
-
-* **Your Name**
-  * [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=flat&logo=linkedin&logoColor=white)](https://linkedin.com/in/your-profile)
-  * [![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat&logo=github&logoColor=white)](https://github.com/your-username)
-
-*Project developed for high-performance Personal life operations and intelligence scheduling.*
