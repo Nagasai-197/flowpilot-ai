@@ -147,7 +147,10 @@ export async function handleExpressRequest(request: Request): Promise<Response> 
       }
     }
 
-    const req: any = Readable.from(Buffer.from(requestBodyText));
+    const req: any = new Readable();
+    req._read = () => {};
+    req.push(Buffer.from(requestBodyText));
+    req.push(null);
 
     req.method = request.method;
     req.url = url.pathname + url.search;

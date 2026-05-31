@@ -17,6 +17,8 @@ import goalRoutes from './routes/goal.routes.js';
 
 const app = express();
 
+app.set('trust proxy', true);
+
 // Security Middlewares
 app.use(helmet());
 app.use('/api', globalLimiter);
