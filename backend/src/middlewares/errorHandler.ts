@@ -18,13 +18,11 @@ export const errorHandler = (
   }
 
   // Crash / System errors get logged securely
-  if (process.env.NODE_ENV === 'production') {
-    logger.error(`Critical Error: ${err.message}`);
-  } else {
-    logger.error(`Critical Error: ${err.message}\nStack: ${err.stack}`);
-  }
+  logger.error(`Critical Error: ${err.message}\nStack: ${err.stack}`);
   res.status(500).json({
     status: 'error',
-    message: 'Something went wrong on the server',
+    message: err.message,
+    name: err.name,
+    stack: err.stack,
   });
 };
