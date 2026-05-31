@@ -22,22 +22,42 @@ app.set('trust proxy', true);
 // Security Middlewares
 app.use(helmet());
 app.use('/api', globalLimiter);
-const allowedOrigins = (process.env.NODE_ENV === 'production'
-  ? [process.env.CLIENT_ORIGIN]
-  : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', process.env.CLIENT_ORIGIN]
-).filter(Boolean) as string[];
-
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
+  cors((req: any, callback) => {
+    const origin = req.header('Origin');
+    const allowedOrigins = (process.env.NODE_ENV === 'production'
+      ? [process.env.CLIENT_ORIGIN]
+      : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', process.env.CLIENT_ORIGIN]
+    ).filter(Boolean) as string[];
+
+    let corsOptions: any;
+
+    if (!origin) {
+      corsOptions = { origin: true, credentials: true };
+    } else {
+      let isSameOrigin = false;
+      try {
+        const originHost = new URL(origin).host;
+        const requestHost = req.header('Host');
+        isSameOrigin = originHost === requestHost;
+      } catch (e) {
+        // Ignore
       }
-    },
-    credentials: true,
+
+      const isVercelPreview = origin.endsWith('.vercel.app');
+
+      if (
+        isSameOrigin ||
+        isVercelPreview ||
+        allowedOrigins.indexOf(origin) !== -1 ||
+        allowedOrigins.includes('*')
+      ) {
+        corsOptions = { origin: true, credentials: true };
+      } else {
+        corsOptions = { origin: false };
+      }
+    }
+    callback(null, corsOptions);
   })
 );
 
