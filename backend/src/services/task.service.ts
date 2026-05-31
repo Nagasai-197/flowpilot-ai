@@ -22,7 +22,7 @@ export class TaskService {
       query = query.eq('status', filters.status);
     }
     if (filters.priority) {
-      const mappedPriority = filters.priority === 'med' ? 'medium' : filters.priority;
+      const mappedPriority = filters.priority === 'medium' ? 'med' : filters.priority;
       query = query.eq('priority', mappedPriority);
     }
     if (filters.tag) {
@@ -94,7 +94,7 @@ export class TaskService {
     if (dbPayload.priority === 'high') {
       dbPayload.color = 'red';
     } else if (dbPayload.priority === 'medium' || dbPayload.priority === 'med') {
-      dbPayload.priority = 'medium';
+      dbPayload.priority = 'med';
       dbPayload.color = 'orange';
     } else if (dbPayload.priority === 'low') {
       dbPayload.color = 'green';
@@ -134,7 +134,7 @@ export class TaskService {
     if (dbPayload.priority === 'high') {
       dbPayload.color = 'red';
     } else if (dbPayload.priority === 'medium' || dbPayload.priority === 'med') {
-      dbPayload.priority = 'medium';
+      dbPayload.priority = 'med';
       dbPayload.color = 'orange';
     } else if (dbPayload.priority === 'low') {
       dbPayload.color = 'green';
