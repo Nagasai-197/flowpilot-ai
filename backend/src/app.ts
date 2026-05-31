@@ -110,7 +110,7 @@ app.use('/api', copilotRoutes);
 
 
 // Fallback Route for non-existing endpoints
-app.use('*', (_req, _res, next) => {
+app.use((_req, _res, next) => {
   next(new NotFoundError('Resource not found'));
 });
 
