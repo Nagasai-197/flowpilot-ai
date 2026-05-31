@@ -98,6 +98,7 @@ app.get('/api/health', async (_req, res) => {
     status: healthy ? 'ok' : 'error',
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
+    version: 'v1.0.3_priority_fix',
     services: {
       supabase: supabaseOk ? 'connected' : 'disconnected',
       gemini: geminiConfigured ? 'configured' : 'missing_api_key',
