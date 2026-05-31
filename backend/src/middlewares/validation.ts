@@ -48,7 +48,7 @@ export const validateBody = (schema: z.ZodObject<any, any>) => {
 const taskSchema = z.object({
   title: z.string().min(1, 'Task title is required').max(100, 'Task title exceeds maximum limit of 100 characters'),
   description: z.string().max(1000, 'Task description exceeds maximum limit of 1000 characters').optional().nullable(),
-  status: z.enum(['todo', 'doing', 'done']).default('todo').optional(),
+  status: z.enum(['todo', 'doing', 'review', 'done']).default('todo').optional(),
   priority: z.enum(['low', 'med', 'medium', 'high']).default('med').optional(),
   tag: z.string().max(50, 'Tag name exceeds maximum limit of 50 characters').optional().nullable(),
   color: z.string().max(20, 'Color value exceeds maximum limit of 20 characters').optional().nullable(),

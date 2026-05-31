@@ -8,9 +8,11 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  if (err instanceof AppError) {
-    logger.warn(`Operational Error: ${err.statusCode} - ${err.message}`);
-    res.status(err.statusCode).json({
+  const isOperational = err instanceof AppError || (err && typeof (err as any).statusCode === 'number');
+  if (isOperational) {
+    const statusCode = (err as any).statusCode || 400;
+    logger.warn(`Operational Error: ${statusCode} - ${err.message}`);
+    res.status(statusCode).json({
       status: 'error',
       message: err.message,
     });
