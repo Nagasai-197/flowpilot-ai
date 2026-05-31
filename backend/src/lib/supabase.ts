@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/index.js';
-import WebSocket from 'ws';
+import ws from 'ws';
 
 if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
   throw new Error('Missing Supabase initialization parameters in config');
@@ -18,7 +18,7 @@ export const supabase = createClient(
       autoRefreshToken: false,
     },
     realtime: {
-      websocket: WebSocket,
+      transport: ws,
     } as any,
   }
 );
