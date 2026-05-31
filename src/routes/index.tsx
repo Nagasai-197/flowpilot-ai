@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
   Sparkles, Calendar, Brain, BarChart3, Zap, CheckCircle2,
   ArrowRight, Command, Bot, Target, Clock, TrendingUp, Star,
+  Sun, Moon,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
@@ -24,6 +26,40 @@ const fade = {
   transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },
 };
 
+function ThemeToggle() {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const currentTheme = (localStorage.getItem("theme") as "light" | "dark") || 
+      (document.documentElement.classList.contains("dark") ? "dark" : "light");
+    setTheme(currentTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(newTheme);
+  };
+
+  return (
+    <button
+      onClick={toggleTheme}
+      className="grid h-9 w-9 place-items-center rounded-full border border-border/60 bg-background/50 hover:bg-accent text-foreground transition-colors"
+      aria-label="Toggle theme"
+    >
+      {theme === "light" ? (
+        <Moon className="h-4 w-4" />
+      ) : (
+        <Sun className="h-4 w-4" />
+      )}
+    </button>
+  );
+}
+
 function Nav() {
   return (
     <header className="sticky top-0 z-40 mx-auto w-full max-w-7xl px-4 pt-4">
@@ -36,6 +72,7 @@ function Nav() {
           <a href="#faq" className="hover:text-foreground">FAQ</a>
         </nav>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link to="/login" className="hidden rounded-full px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground sm:inline">Sign in</Link>
           <Link to="/app/dashboard" className="group inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background transition-all hover:opacity-90">
             Launch app <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
