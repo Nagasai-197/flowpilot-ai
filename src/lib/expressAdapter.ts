@@ -92,6 +92,15 @@ export async function handleExpressRequest(request: Request): Promise<Response> 
       req.headers[key.toLowerCase()] = val;
     });
 
+    // Mock network socket properties to support rate-limit and logger middlewares under serverless environments
+    const clientIp = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    req.socket = {
+      remoteAddress: clientIp,
+    };
+    req.connection = req.socket;
+    req.ip = clientIp;
+
+
     // 3. Delegate to Express app request listener
     try {
       app(req, res);
