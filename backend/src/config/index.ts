@@ -15,9 +15,10 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
+  const errorMsg = JSON.stringify(parsed.error.format(), null, 2);
   console.error('❌ Invalid environment configuration variables:');
-  console.error(JSON.stringify(parsed.error.format(), null, 2));
-  process.exit(1);
+  console.error(errorMsg);
+  throw new Error(`Invalid environment configuration: ${errorMsg}`);
 }
 
 export const config = parsed.data;
