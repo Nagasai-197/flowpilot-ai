@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
+import { authLimiter } from '../middlewares/rateLimiter.js';
 
 const router = Router();
 
 // Public Routes
-router.post('/signup', AuthController.signup);
-router.post('/login', AuthController.login);
+router.post('/signup', authLimiter, AuthController.signup);
+router.post('/login', authLimiter, AuthController.login);
 
 // Protected Routes
 router.post('/logout', requireAuth, AuthController.logout);

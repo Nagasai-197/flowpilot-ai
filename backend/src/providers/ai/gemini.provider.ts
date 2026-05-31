@@ -10,7 +10,7 @@ const FALLBACK_MODEL = 'gemini-2.5-flash-lite-preview-05-20';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /** Max ms to wait for a single model attempt before aborting and trying fallback */
-const REQUEST_TIMEOUT_MS = 25_000; // 25 seconds
+const REQUEST_TIMEOUT_MS = 10_000; // 10 seconds (optimized for Vercel Hobby execution limits)
 
 /** HTTP status codes that trigger fallback to lite model */
 const FALLBACK_ON_STATUS = new Set([429, 503]);

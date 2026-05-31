@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Read from environment variables, fallback to local development defaults matching the backend configuration
-const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "https://gvhiiyjhyvtzdkbrnbea.supabase.co").replace(/\/rest\/v1\/?$/, "");
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2aGlpeWpoeXZ0emRrYnJuYmVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMDMxODYsImV4cCI6MjA5NTU3OTE4Nn0.RTEs8kW6-yXlxz9NXHrFMCxITZIWZ4zykTbBMu46VQA";
+// Read from environment variables. No fallbacks are allowed in production mode.
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/rest\/v1\/?$/, "");
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (typeof window !== "undefined" && (!supabaseUrl || !supabaseAnonKey)) {
+  console.error("Warning: Supabase environment variables are missing! Make sure to configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+}
+
+// Fallback to placeholder during build/static analysis to prevent build-time crashes
+export const supabase = createClient(
+  supabaseUrl || "https://placeholder-project.supabase.co",
+  supabaseAnonKey || "placeholder-anon-key"
+);

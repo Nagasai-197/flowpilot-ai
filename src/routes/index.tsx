@@ -148,10 +148,10 @@ function Features() {
 }
 
 const stats = [
-  { v: "3.4×", l: "Faster planning" },
-  { v: "92%", l: "Tasks completed on time" },
-  { v: "27h", l: "Saved monthly" },
-  { v: "4.9", l: "Avg user rating" },
+  { v: "3.5×", l: "Focus Sessions Scheduled" },
+  { v: "100%", l: "Self-Hosted & Private" },
+  { v: "24/7", l: "AI Productivity Support" },
+  { v: "10s", l: "To Generate Your Daily Schedule" },
 ];
 
 function Stats() {
@@ -199,9 +199,9 @@ function How() {
 }
 
 const testimonials = [
-  { name: "Maya Chen", role: "Founder, Loomly", quote: "FlowPilot is the first productivity tool that actually feels like a teammate. The AI planner is uncanny.", color: "lavender" },
-  { name: "Daniel Ortiz", role: "Senior Engineer, Stripe", quote: "It quietly orchestrates my week. I open my laptop and my day is already drafted, beautifully.", color: "mint" },
-  { name: "Aisha Khan", role: "PhD Candidate, MIT", quote: "I dropped three apps the week I started using FlowPilot. The focus sessions alone are worth it.", color: "sky" },
+  { name: "Alex Chen", role: "Software Engineer & Indie Maker", quote: "FlowPilot is the first productivity tool that actually feels like a teammate. The AI planner is uncanny.", color: "lavender" },
+  { name: "Sarah Ortiz", role: "Tech Lead & Blogger", quote: "It quietly orchestrates my week. I open my laptop and my day is already drafted, beautifully.", color: "mint" },
+  { name: "Michael Khan", role: "Graduate Student", quote: "I dropped three apps the week I started using FlowPilot. The focus sessions alone are worth it.", color: "sky" },
 ];
 
 function Testimonials() {
@@ -237,7 +237,7 @@ const faqs = [
   { q: "Is FlowPilot really powered by AI?", a: "Yes. Our adaptive planner uses an LLM-backed engine to score, schedule, and reflow your day based on context." },
   { q: "Can I use it for free?", a: "FlowPilot has a generous free tier including core planning, tasks, and analytics." },
   { q: "Does it work on mobile?", a: "Absolutely. The app is fully responsive and built for touch-first interactions." },
-  { q: "What integrations are supported?", a: "Google Calendar, Notion, GitHub, Linear, Slack, and more on the roadmap." },
+  { q: "What integrations are supported?", a: "Currently, FlowPilot is a standalone system with private local storage. Integrations with Google Calendar, Notion, and GitHub are on our active immediate roadmap." },
 ];
 
 function FAQ() {
@@ -302,13 +302,13 @@ function Footer() {
           </div>
           <div className="space-y-2">
             <div className="font-medium text-foreground">Company</div>
-            <a className="block hover:text-foreground">About</a>
-            <a className="block hover:text-foreground">Careers</a>
+            <a href="#about" className="block hover:text-foreground">About</a>
+            <a href="#careers" className="block hover:text-foreground">Careers</a>
           </div>
           <div className="space-y-2">
             <div className="font-medium text-foreground">Legal</div>
-            <a className="block hover:text-foreground">Privacy</a>
-            <a className="block hover:text-foreground">Terms</a>
+            <a href="#privacy" className="block hover:text-foreground">Privacy</a>
+            <a href="#terms" className="block hover:text-foreground">Terms</a>
           </div>
         </div>
       </div>

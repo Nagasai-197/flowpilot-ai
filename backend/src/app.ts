@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { requestLogger } from './middlewares/logger.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { NotFoundError } from './utils/errors.js';
+import { globalLimiter } from './middlewares/rateLimiter.js';
 import authRoutes from './routes/auth.routes.js';
 import taskRoutes from './routes/task.routes.js';
 import habitRoutes from './routes/habit.routes.js';
@@ -18,6 +19,7 @@ const app = express();
 
 // Security Middlewares
 app.use(helmet());
+app.use('/api', globalLimiter);
 const allowedOrigins = (process.env.NODE_ENV === 'production'
   ? [process.env.CLIENT_ORIGIN]
   : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', process.env.CLIENT_ORIGIN]
@@ -109,7 +111,7 @@ app.use('/api', copilotRoutes);
 
 // Fallback Route for non-existing endpoints
 app.use('*', (_req, _res, next) => {
-  next(new NotFoundError('API Route not found'));
+  next(new NotFoundError('Resource not found'));
 });
 
 // Global Centralized Error Interceptor

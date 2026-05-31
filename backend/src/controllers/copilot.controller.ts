@@ -5,6 +5,7 @@ import { getAIProvider } from '../providers/ai/index.js';
 import { logger } from '../utils/logger.js';
 import { TaskService } from '../services/task.service.js';
 import { HabitService } from '../services/habit.service.js';
+import { config } from '../config/index.js';
 
 export class CopilotController {
   /**
@@ -12,6 +13,10 @@ export class CopilotController {
    * realistic engineering student workspace profile for the hackathon judges.
    */
   static async enableDemoMode(req: Request, res: Response, next: NextFunction): Promise<void> {
+    if (config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production') {
+      return next(new AppError('Demo seeding is disabled in production environments to protect database integrity.', 403));
+    }
+
     const userId = req.user?.id;
     if (!userId) {
       return next(new AppError('Unauthorized access', 401));
@@ -270,9 +275,13 @@ export class CopilotController {
       const todayLogs = habits.filter(h => h.days && h.days[h.days.length - 1] === 1);
       const habitRate = habits.length > 0 ? (todayLogs.length / habits.length) : 1;
 
-      // Planner adherence
+      // Planner adherence: calculated dynamically based on real task & habit completion ratios.
+      // If no tasks are due and no habits are tracked today, adherence is 100% (1.0).
+      // Otherwise, we take a balanced weight of task execution (60%) and habit check-in (40%).
       const focusBlocks = (schedule || []).filter(b => b.type === 'focus');
-      const plannerAdherence = focusBlocks.length > 0 ? 0.95 : 1.0; // Mock standard adherence
+      const plannerAdherence = (todayTasks.length === 0 && habits.length === 0)
+        ? 1.0
+        : (0.6 * taskRate + 0.4 * habitRate);
 
       const todaySuccessScore = Math.min(100, Math.round(
         (0.4 * taskRate + 0.4 * habitRate + 0.2 * plannerAdherence) * 100

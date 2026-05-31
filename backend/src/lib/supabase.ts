@@ -23,8 +23,4 @@ export const supabase = createClient(
   }
 );
 
-// Admin client for system operations (bypasses RLS - use carefully!)
-export const supabaseAdmin = supabase;
-// Make typescript compilation successful if types aren't fully resolved yet.
 export type SupabaseClientType = typeof supabase;
-export type SupabaseAdminClientType = typeof supabaseAdmin;

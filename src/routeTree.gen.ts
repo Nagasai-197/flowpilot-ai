@@ -23,6 +23,7 @@ import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCalendarRouteImport } from './routes/app.calendar'
 import { Route as AppAssistantRouteImport } from './routes/app.assistant'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
+import { Route as ApiSplatRouteImport } from './routes/api.$'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -94,12 +95,18 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/api/$': typeof ApiSplatRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/api/$': typeof ApiSplatRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/api/$': typeof ApiSplatRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/signup'
+    | '/api/$'
     | '/app/analytics'
     | '/app/assistant'
     | '/app/calendar'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/signup'
+    | '/api/$'
     | '/app/analytics'
     | '/app/assistant'
     | '/app/calendar'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/signup'
+    | '/api/$'
     | '/app/analytics'
     | '/app/assistant'
     | '/app/calendar'
@@ -200,6 +212,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -302,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -338,6 +358,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

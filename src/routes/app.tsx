@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouterState, useNavigate, redirect } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
@@ -8,6 +8,7 @@ import { Loader2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTasks } from "../hooks/useTasks";
 import { toast } from "sonner";
+import { supabase } from "../lib/supabase";
 
 const titles: Record<string, string> = {
   "/app/dashboard": "Dashboard",
@@ -23,6 +24,12 @@ const titles: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/app")({
+  beforeLoad: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw redirect({ to: "/login" });
+    }
+  },
   component: AppLayout,
 });
 
