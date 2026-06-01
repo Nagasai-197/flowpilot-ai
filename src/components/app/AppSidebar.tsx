@@ -16,7 +16,6 @@ const items = [
   { to: "/app/planner", label: "AI Planner", icon: Brain },
   { to: "/app/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/app/assistant", label: "AI Assistant", icon: Bot },
-  { to: "/app/habits", label: "Habits", icon: Repeat },
   { to: "/app/calendar", label: "Calendar", icon: Calendar },
   { to: "/app/notifications", label: "Notifications", icon: Bell },
   { to: "/app/settings", label: "Settings", icon: Settings },
@@ -97,17 +96,7 @@ export function AppSidebar({ mobileOpen, onMobileClose }: { mobileOpen: boolean;
             </div>
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">{displayName}</div>
-              {user?.email === "demo@flowpilot.ai" ? (
-                <div className="truncate text-[10px] text-primary font-semibold flex items-center gap-1.5">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
-                  </span>
-                  Demo Workspace
-                </div>
-              ) : (
-                <div className="truncate text-[10px] text-muted-foreground">Pro plan</div>
-              )}
+              <div className="truncate text-[10px] text-muted-foreground">Pro plan</div>
             </div>
           </div>
         </div>

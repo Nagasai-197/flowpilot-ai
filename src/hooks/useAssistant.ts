@@ -24,7 +24,6 @@ export interface AIAssistantAction {
     | "complete_goal"
     | "delete_goal"
     | "show_goals"
-    | "enable_demo"
     | "show_schedule" 
     | "show_analytics" 
     | "move_block" 
@@ -48,15 +47,7 @@ export function useAssistant() {
 
   const executeImmediateAction = async (action: AIAssistantAction) => {
     try {
-      if (action.type === "enable_demo") {
-        toast.loading("Seeding premium Engineering Student profile...");
-        await api.post("/demo/enable");
-        toast.dismiss();
-        toast.success("Demo Mode seeded successfully! 🎓");
-        
-        // Invalidate all query caches to refresh UI instantly
-        queryClient.invalidateQueries();
-      } else if (action.type === "create_task") {
+      if (action.type === "create_task") {
         await api.post("/tasks", action.payload);
         toast.success(`Task '${action.payload?.title}' created successfully! 📝`);
         queryClient.invalidateQueries({ queryKey: ["tasks"] });

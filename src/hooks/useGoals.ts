@@ -54,6 +54,15 @@ export function useGoals() {
     },
   });
 
+  // 5. Regenerate roadmap milestones
+  const regenerateRoadmapMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/goals/${id}/roadmap/regenerate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    },
+  });
+
   return {
     goals,
     isLoading: goalsQuery.isLoading,
@@ -62,8 +71,10 @@ export function useGoals() {
     createGoal: createGoalMutation.mutate,
     updateGoal: updateGoalMutation.mutate,
     deleteGoal: deleteGoalMutation.mutate,
+    regenerateRoadmap: regenerateRoadmapMutation.mutate,
     isCreating: createGoalMutation.isPending,
     isUpdating: updateGoalMutation.isPending,
     isDeleting: deleteGoalMutation.isPending,
+    isRegenerating: regenerateRoadmapMutation.isPending,
   };
 }

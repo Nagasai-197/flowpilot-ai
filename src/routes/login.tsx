@@ -28,7 +28,6 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,58 +95,7 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    setErrorMsg(null);
-    try {
-      const email = "demo@flowpilot.ai";
-      const password = "demoflowpilot";
-      
-      // 1. Try to login
-      let res = await login(email, password);
-      
-      // 2. If it fails, try to sign up and then login
-      if (res.error) {
-        if (res.error.toLowerCase().includes("credentials") || res.error.toLowerCase().includes("not found")) {
-          // Register the demo account
-          const signupRes = await signup(email, password, "Demo Pilot");
-          if (signupRes.error) {
-            throw new Error(signupRes.error);
-          }
-          // Login again after signup
-          res = await login(email, password);
-          if (res.error) {
-            throw new Error(res.error);
-          }
-        } else {
-          throw new Error(res.error);
-        }
-      }
-
-      if (res.data) {
-        toast.success("Welcome to Demo Mode! 🎓");
-        
-        // 3. Immediately trigger /demo/enable to seed the data!
-        try {
-          await api.post("/demo/enable");
-          toast.success("Demo Workspace seeded successfully! ✨");
-        } catch (err: any) {
-          console.error("Failed to seed demo data:", err);
-          // Don't block login if seeding fails (e.g. database already seeded)
-        }
-        
-        navigate({ to: "/app/dashboard" });
-      }
-    } catch (err: any) {
-      const msg = err?.message || err || "Failed to enter Demo Mode.";
-      setErrorMsg(msg);
-      toast.error(msg);
-    } finally {
-      setDemoLoading(false);
-    }
-  };
-
-  const isPending = loading || authLoading || googleLoading || demoLoading;
+  const isPending = loading || authLoading || googleLoading;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#fafafa] px-4 py-12 dark:bg-[#09090b]">
@@ -255,21 +203,6 @@ export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
           <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground/60 font-normal">
             <span className="h-px flex-1 bg-border/60" /> or <span className="h-px flex-1 bg-border/60" />
           </div>
-
-          {/* Demo Mode Instant Login */}
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={isPending}
-            className="mb-3.5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] py-3.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60 cursor-pointer shadow-lg shadow-primary/25 border border-primary/20"
-          >
-            {demoLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-white" />
-            ) : (
-              <Sparkles className="h-4 w-4 text-white animate-pulse" />
-            )}
-            {demoLoading ? "Preparing Demo Workspace..." : "Explore with Demo Mode (Instant)"}
-          </button>
 
           {/* Dedicated Branded Google Login */}
           <button

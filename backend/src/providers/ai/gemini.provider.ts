@@ -301,4 +301,145 @@ Return valid JSON matching exactly:
       throw new AppError(`AI Assistant Chat failed: ${err.message}`, 500);
     }
   }
+
+  // ── AI Goal Roadmap Generation ─────────────────────────────────────────────
+  async generateGoalRoadmap(
+    goalTitle: string,
+    goalDescription?: string
+  ): Promise<{ milestones: { title: string; completed: boolean }[] }> {
+    const apiKey = config.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'placeholder-gemini-key') {
+      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    }
+
+    const promptText = `
+You are FlowPilot's AI Goal Strategist.
+The user wants to achieve the following goal: "${goalTitle}".
+${goalDescription ? `Goal Description: "${goalDescription}"` : ''}
+
+Your job is to:
+1. Analyze this goal.
+2. Generate a highly structured, chronological roadmap consisting of exactly 5 to 7 actionable, high-impact milestones that lead to successfully achieving the goal.
+3. Keep titles clear, concise, and professional (e.g., "Learn Linux Basics", "Apply for Jobs").
+4. Return a JSON array of milestones. Each milestone must have a "title" string and "completed" boolean set to false.
+
+Return ONLY valid JSON. No markdown fences.
+Schema:
+{
+  "milestones": [
+    { "title": "Milestone Title", "completed": false }
+  ]
+}
+`;
+
+    const payload = {
+      contents: [
+        {
+          parts: [{ text: promptText }],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            milestones: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  title: { type: 'STRING' },
+                  completed: { type: 'BOOLEAN' },
+                },
+                required: ['title', 'completed'],
+              },
+            },
+          },
+          required: ['milestones'],
+        },
+      },
+    };
+
+    try {
+      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!rawText) {
+        throw new AppError('Gemini Goal Roadmap returned empty response', 502);
+      }
+
+      return JSON.parse(rawText);
+    } catch (err: any) {
+      logger.error(`Failed to generate goal roadmap: ${err.message}`);
+      throw new AppError(`AI Goal Roadmap generation failed: ${err.message}`, 500);
+    }
+  }
+
+  // ── AI Single Block Customization ──────────────────────────────────────────
+  async regenerateSingleBlock(
+    blockTitle: string,
+    blockType: string,
+    durationMinutes: number
+  ): Promise<{ title: string; block_type: string; color: string; rationale: string }> {
+    const apiKey = config.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'placeholder-gemini-key') {
+      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    }
+
+    const promptText = `
+You are FlowPilot's AI Cognitive Performance Scientist.
+The user has a schedule block of type "${blockType}" titled "${blockTitle}" with a duration of ${durationMinutes} minutes.
+Your job is to optimize this specific block. Suggest a concrete, high-performance replacement activity and provide a compelling, science-backed cognitive rationale (referencing spacing effects, Pomodoro techniques, Ultradian rhythms, active recall, or cognitive load theory).
+
+Requirements:
+1. Suggest a highly actionable, specific title (e.g., "DSA Active Recall: Graphs" instead of just "Coding").
+2. Align the block type strictly to one of: "focus", "break", "meeting", "habit".
+3. Recommend an aesthetic color: "lavender" (for focus), "mint" (for habit), "sky" (for meeting), "peach" (for break).
+4. Provide a 1-to-2 sentence scientific rationale explaining WHY this optimizes focus/rest.
+
+Return ONLY valid JSON. No markdown fences.
+Schema:
+{
+  "title": "New Block Title",
+  "block_type": "focus|break|meeting|habit",
+  "color": "lavender|mint|sky|peach",
+  "rationale": "Science-backed explanation..."
+}
+`;
+
+    const payload = {
+      contents: [
+        {
+          parts: [{ text: promptText }],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            title: { type: 'STRING' },
+            block_type: { type: 'STRING', enum: ['focus', 'break', 'meeting', 'habit'] },
+            color: { type: 'STRING', enum: ['lavender', 'mint', 'sky', 'peach'] },
+            rationale: { type: 'STRING' },
+          },
+          required: ['title', 'block_type', 'color', 'rationale'],
+        },
+      },
+    };
+
+    try {
+      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!rawText) {
+        throw new AppError('Gemini Single Block regeneration returned empty response', 502);
+      }
+
+      return JSON.parse(rawText);
+    } catch (err: any) {
+      logger.error(`Failed to regenerate single block: ${err.message}`);
+      throw new AppError(`AI Single Block regeneration failed: ${err.message}`, 500);
+    }
+  }
 }

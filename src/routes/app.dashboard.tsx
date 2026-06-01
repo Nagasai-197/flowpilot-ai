@@ -3,11 +3,12 @@ import { motion } from "framer-motion";
 import {
   Sparkles, CheckCircle2, Flame, TrendingUp, ArrowUpRight,
   CalendarDays, Zap, Loader2, Award, AlertTriangle, ShieldAlert,
-  Brain, Coffee, Target, Activity, Calendar, ClipboardList
+  Brain, Coffee, Target, Activity, Calendar, ClipboardList, Repeat
 } from "lucide-react";
 
 import { useAuth } from "../hooks/useAuth";
 import { usePlanner } from "../hooks/usePlanner";
+import { useHabits } from "../hooks/useHabits";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { generatePlan, isGenerating } = usePlanner();
+  const { habits, toggleHabit } = useHabits();
 
   // Query high-performance Analytics Copilot summary
   const { data: copilotSummary, isLoading: copilotLoading } = useQuery<any>({
@@ -56,19 +58,6 @@ function Dashboard() {
         loading: "Optimizing schedule planner...",
         success: "AI Schedule plan regenerated successfully! 📅",
         error: "Failed to optimize schedule.",
-      }
-    );
-  };
-
-  const handleEnableDemo = async () => {
-    toast.promise(
-      api.post("/demo/enable").then(() => {
-        queryClient.invalidateQueries();
-      }),
-      {
-        loading: "Seeding premium Engineering Student profile...",
-        success: "Demo Mode seeded successfully! 🎓",
-        error: "Seeding failed."
       }
     );
   };
@@ -151,7 +140,7 @@ function Dashboard() {
       icon: TrendingUp, 
       color: "sky",
       desc: "Completed vs expected habit check-ins over the past 30 days",
-      to: "/app/habits"
+      to: "/app/dashboard"
     },
     { 
       label: "Active Streak", 
@@ -160,7 +149,7 @@ function Dashboard() {
       icon: Flame, 
       color: "peach",
       desc: "Consecutive days with Success Score >= 70% and Habit Completion >= 70%",
-      to: "/app/habits"
+      to: "/app/dashboard"
     },
   ];
 
@@ -185,12 +174,6 @@ function Dashboard() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={handleEnableDemo}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 cursor-pointer"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Enable Demo Mode
-            </button>
             <button 
               onClick={handleRegenerate}
               disabled={isGenerating}
@@ -412,6 +395,101 @@ function Dashboard() {
                         Active
                       </span>
                     </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+
+          {/* Habits Cockpit Widget Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className={cn(cardClass, "space-y-4")}
+          >
+            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Daily Habits</div>
+                <h2 className="mt-0.5 text-lg font-semibold flex items-center gap-2">
+                  <Repeat className="h-4.5 w-4.5 text-muted-foreground" /> Today's Habits
+                </h2>
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground">Quick Action Cockpit</span>
+            </div>
+
+            {habits.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Zap className="h-7 w-7 text-primary animate-pulse mb-2 opacity-60" />
+                <h3 className="font-semibold text-sm">No habits configured</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mt-1">Configure your habits in settings to start tracking consistency.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {habits.map((h: any) => {
+                  const todayCompleted = h.days?.[6] === 1;
+                  return (
+                    <div key={h.id} className="rounded-2xl border border-border/60 bg-secondary/20 p-4 flex flex-col justify-between space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{h.name}</div>
+                          <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
+                            <Flame className="h-3 w-3 text-orange-500" /> {h.streak}-day streak ({h.pct}% consistency)
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const todayStr = new Date().toLocaleDateString('en-CA');
+                            toggleHabit({ id: h.id, date: todayStr, completed: !todayCompleted });
+                            toast.success(todayCompleted ? "Habit unchecked" : "Habit checked off! Keep it up 🔥");
+                          }}
+                          className={cn(
+                            "rounded-full p-1.5 shrink-0 transition-all border cursor-pointer",
+                            todayCompleted
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20"
+                              : "bg-card border-border/80 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          )}
+                          title={todayCompleted ? "Uncheck habit" : "Complete habit"}
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Past 7 days visualization */}
+                      <div className="flex justify-between gap-1 border-t border-border/30 pt-3">
+                        {Array.from({ length: 7 }, (_, i) => {
+                          const dayVal = h.days?.[i] || 0;
+                          const isToday = i === 6;
+                          const d = new Date();
+                          d.setDate(d.getDate() - (6 - i));
+                          const dayLabel = ["S", "M", "T", "W", "T", "F", "S"][d.getDay()];
+                          const todayStr = new Date().toLocaleDateString('en-CA');
+
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                              <span className="text-[9px] text-muted-foreground font-semibold">{isToday ? "Today" : dayLabel}</span>
+                              <button
+                                onClick={() => {
+                                  if (isToday) {
+                                    toggleHabit({ id: h.id, date: todayStr, completed: dayVal !== 1 });
+                                    toast.success(dayVal === 1 ? "Habit unchecked" : "Habit checked off! Keep it up 🔥");
+                                  } else {
+                                    toast.info("Past dates cannot be altered. Stay focused on today!");
+                                  }
+                                }}
+                                className={cn(
+                                  "h-5 w-full rounded-md transition-all border border-transparent text-[8px] flex items-center justify-center font-bold cursor-pointer select-none",
+                                  dayVal === 1 ? "text-white hover:scale-105 active:scale-95" : isToday ? "bg-secondary text-muted-foreground hover:scale-105 active:scale-95 border-primary/30" : "bg-secondary/40 text-muted-foreground/30 cursor-not-allowed",
+                                  !isToday && "cursor-not-allowed hover:bg-secondary/35"
+                                )}
+                                style={dayVal === 1 ? { background: `color-mix(in oklab, var(--${h.color || "mint"}) 80%, var(--card))` } : undefined}
+                                title={isToday ? "Click to toggle today's habit check-in" : "Past record (locked)"}
+                              >
+                                {dayVal === 1 ? "✓" : "•"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>

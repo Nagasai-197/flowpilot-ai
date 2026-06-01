@@ -57,6 +57,44 @@ export function usePlanner(targetDate?: string) {
     },
   });
 
+  // 3. Create schedule block
+  const createBlockMutation = useMutation({
+    mutationFn: (newBlock: { title: string; block_type: string; start_time: string; end_time: string; color?: string }) =>
+      api.post("/planner/blocks", newBlock),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    },
+  });
+
+  // 4. Update schedule block
+  const updateBlockMutation = useMutation({
+    mutationFn: ({ id, ...payload }: { id: string; title?: string; block_type?: string; start_time?: string; end_time?: string; color?: string }) =>
+      api.put(`/planner/blocks/${id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    },
+  });
+
+  // 5. Delete schedule block
+  const deleteBlockMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/planner/blocks/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    },
+  });
+
+  // 6. Regenerate single schedule block
+  const regenerateBlockMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/planner/blocks/${id}/regenerate`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    },
+  });
+
   return {
     schedule,
     recommendations,
@@ -64,6 +102,14 @@ export function usePlanner(targetDate?: string) {
     isError: currentPlanQuery.isError,
     error: currentPlanQuery.error,
     generatePlan: generatePlanMutation.mutate,
+    createBlock: createBlockMutation.mutateAsync,
+    updateBlock: updateBlockMutation.mutateAsync,
+    deleteBlock: deleteBlockMutation.mutateAsync,
+    regenerateBlock: regenerateBlockMutation.mutateAsync,
     isGenerating: generatePlanMutation.isPending,
+    isCreatingBlock: createBlockMutation.isPending,
+    isUpdatingBlock: updateBlockMutation.isPending,
+    isDeletingBlock: deleteBlockMutation.isPending,
+    isRegeneratingBlock: regenerateBlockMutation.isPending,
   };
 }

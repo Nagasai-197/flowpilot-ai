@@ -9,6 +9,5 @@ router.use(requireAuth);
 
 router.get('/analytics/copilot', CopilotController.getCopilotSummary);
 router.get('/analytics/weekly-review', CopilotController.getWeeklyReview);
-router.post('/demo/enable', CopilotController.enableDemoMode);
 
 export default router;

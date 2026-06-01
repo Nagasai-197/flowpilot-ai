@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useGoals, Goal } from "../hooks/useGoals";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "../lib/api";
 
 export const Route = createFileRoute("/app/goals")({
   component: GoalsPage,
@@ -25,7 +27,7 @@ const GOAL_TYPE_ICONS: Record<string, string> = {
 };
 
 function GoalsPage() {
-  const { goals, isLoading, isError, createGoal, updateGoal, deleteGoal } = useGoals();
+  const { goals, isLoading, isError, createGoal, updateGoal, deleteGoal, regenerateRoadmap } = useGoals();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
@@ -189,6 +191,8 @@ function GoalsPage() {
                 onEdit={openEdit}
                 onDelete={handleDelete}
                 onComplete={handleMarkComplete}
+                updateGoal={updateGoal}
+                regenerateRoadmap={regenerateRoadmap}
               />
             ))}
           </div>
@@ -201,7 +205,15 @@ function GoalsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Paused</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pausedGoals.map((g, i) => (
-              <GoalCard key={g.id} goal={g} index={i} onEdit={openEdit} onDelete={handleDelete} />
+              <GoalCard 
+                key={g.id} 
+                goal={g} 
+                index={i} 
+                onEdit={openEdit} 
+                onDelete={handleDelete} 
+                updateGoal={updateGoal}
+                regenerateRoadmap={regenerateRoadmap}
+              />
             ))}
           </div>
         </div>
@@ -213,7 +225,15 @@ function GoalsPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">Completed</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {completedGoals.map((g, i) => (
-              <GoalCard key={g.id} goal={g} index={i} onEdit={openEdit} onDelete={handleDelete} />
+              <GoalCard 
+                key={g.id} 
+                goal={g} 
+                index={i} 
+                onEdit={openEdit} 
+                onDelete={handleDelete} 
+                updateGoal={updateGoal}
+                regenerateRoadmap={regenerateRoadmap}
+              />
             ))}
           </div>
         </div>
@@ -399,16 +419,68 @@ function GoalCard({
   onEdit,
   onDelete,
   onComplete,
+  updateGoal,
+  regenerateRoadmap,
 }: {
   goal: Goal;
   index: number;
   onEdit: (g: Goal) => void;
   onDelete: (g: Goal) => void;
   onComplete?: (g: Goal) => void;
+  updateGoal: (g: any) => void;
+  regenerateRoadmap: (id: string) => void;
 }) {
   const color = GOAL_TYPE_COLORS[goal.type] || "lavender";
   const icon = GOAL_TYPE_ICONS[goal.type] || "🎯";
   const progress = goal.progress ?? 0;
+  const [isRegeneratingLocal, setIsRegeneratingLocal] = useState(false);
+
+  // Safely parse description and milestones from DB string
+  let userDescriptionText = goal.description || "";
+  let milestones: { id: string; title: string; completed: boolean }[] = [];
+  try {
+    if (goal.description && (goal.description.startsWith("{") || goal.description.startsWith("["))) {
+      const parsed = JSON.parse(goal.description);
+      if (parsed && typeof parsed === "object") {
+        userDescriptionText = parsed.description || "";
+        milestones = parsed.milestones || [];
+      }
+    }
+  } catch (e) {
+    // Ignore, fallback to raw text
+  }
+
+  const handleToggleMilestone = (mId: string, isCompleted: boolean) => {
+    const updatedMilestones = milestones.map(m => 
+      m.id === mId ? { ...m, completed: isCompleted } : m
+    );
+    const updatedDesc = JSON.stringify({
+      description: userDescriptionText,
+      milestones: updatedMilestones
+    });
+    updateGoal({
+      id: goal.id,
+      description: updatedDesc
+    });
+  };
+
+  const handleRegenerateClick = async () => {
+    setIsRegeneratingLocal(true);
+    toast.promise(
+      new Promise((resolve) => {
+        regenerateRoadmap(goal.id);
+        setTimeout(() => {
+          setIsRegeneratingLocal(false);
+          resolve("success");
+        }, 1500);
+      }),
+      {
+        loading: "AI generating goal roadmap...",
+        success: "Roadmap regenerated successfully! 🎯",
+        error: "Failed to regenerate roadmap.",
+      }
+    );
+  };
 
   return (
     <motion.div
@@ -439,52 +511,77 @@ function GoalCard({
               {goal.status}
             </span>
           </div>
-          <h3 className="mt-2 text-sm font-semibold leading-snug text-foreground line-clamp-2">{goal.title}</h3>
-          {goal.description && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{goal.description}</p>
+          {userDescriptionText && (
+            <p className="mt-1.5 text-xs text-muted-foreground leading-normal">{userDescriptionText}</p>
           )}
         </div>
-        <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button
-            onClick={() => onEdit(goal)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary cursor-pointer"
-            title="Edit goal"
-          >
-            <Edit2 className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => onDelete(goal)}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 cursor-pointer"
-            title="Delete goal"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+
+        {/* Milestones Checklist Section */}
+        {milestones.length > 0 && (
+          <div className="rounded-2xl bg-secondary/15 border border-border/30 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/40 pb-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> AI Goal Roadmap
+              </div>
+              <button
+                onClick={handleRegenerateClick}
+                disabled={isRegeneratingLocal}
+                className="p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary/60 disabled:opacity-50 transition-all cursor-pointer"
+                title="Regenerate Milestones with Gemini"
+              >
+                <Repeat className={cn("h-3.5 w-3.5", isRegeneratingLocal && "animate-spin")} />
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-0.5 scrollbar-thin">
+              {milestones.map((milestone) => (
+                <label
+                  key={milestone.id}
+                  className="flex items-start gap-2.5 text-xs font-normal text-foreground/80 cursor-pointer hover:text-foreground select-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={milestone.completed}
+                    onChange={(e) => handleToggleMilestone(milestone.id, e.target.checked)}
+                    className="mt-0.5 rounded border-border text-primary outline-none accent-primary shrink-0"
+                  />
+                  <span className={cn(
+                    "leading-tight transition-all",
+                    milestone.completed && "line-through text-muted-foreground/60"
+                  )}>
+                    {milestone.title}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-          <span>Progress</span>
-          <span className="font-semibold" style={{ color: `var(--${color})` }}>{progress}%</span>
+      <div className="mt-4 pt-3 border-t border-border/30 space-y-3.5">
+        {/* Progress bar */}
+        <div>
+          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+            <span>Goal Progress</span>
+            <span className="font-bold" style={{ color: `var(--${color})` }}>{progress}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-primary to-emerald-400"
+              style={{ width: `${progress}%`, background: `var(--${color})` }}
+            />
+          </div>
         </div>
-        <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${progress}%`, background: `var(--${color})` }}
-          />
-        </div>
-      </div>
 
-      {/* Mark complete button */}
-      {goal.status === "active" && onComplete && (
-        <button
-          onClick={() => onComplete(goal)}
-          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-border/60 py-2 text-xs text-muted-foreground hover:text-green-600 hover:bg-green-50 hover:border-green-200 transition-all cursor-pointer"
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" /> Mark Completed
-        </button>
-      )}
+        {/* Mark complete button */}
+        {goal.status === "active" && onComplete && (
+          <button
+            onClick={() => onComplete(goal)}
+            className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-border/60 py-2 text-xs text-muted-foreground hover:text-green-600 hover:bg-green-50 hover:border-green-200 transition-all cursor-pointer font-semibold"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Complete Goal
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 }

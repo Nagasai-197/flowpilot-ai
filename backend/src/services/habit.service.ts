@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase.js';
-import { NotFoundError, AppError } from '../utils/errors.js';
+import { NotFoundError, AppError, BadRequestError } from '../utils/errors.js';
 
 export class HabitService {
   /**
@@ -230,6 +230,33 @@ export class HabitService {
     date: string,
     completed: boolean
   ) {
+    // 1. Fetch user's timezone from their profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('timezone')
+      .eq('id', userId)
+      .single();
+
+    const timezone = profile?.timezone || 'UTC';
+
+    // 2. Compute today's date string in the user's timezone
+    let todayStr: string;
+    try {
+      todayStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date());
+    } catch (err) {
+      todayStr = new Date().toISOString().split('T')[0];
+    }
+
+    // 3. Validate that the request date matches today's date string
+    if (date !== todayStr) {
+      throw new BadRequestError('Habit logs can only be toggled for today.');
+    }
+
     // Verify owner of habit config first
     const { data: existingHabit, error: existError } = await supabase
       .from('habits')

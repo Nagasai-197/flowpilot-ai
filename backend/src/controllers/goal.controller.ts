@@ -130,4 +130,26 @@ export class GoalController {
       next(err);
     }
   }
+
+  /**
+   * Regenerates AI milestones for a goal
+   */
+  static async regenerateRoadmap(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return next(new UnauthorizedError());
+    }
+
+    try {
+      const goal = await GoalService.regenerateGoalRoadmap(id, userId);
+      res.status(200).json({
+        status: 'success',
+        data: { goal: mapGoalDbToApi(goal) },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

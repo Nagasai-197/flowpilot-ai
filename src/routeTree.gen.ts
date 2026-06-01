@@ -17,7 +17,6 @@ import { Route as AppTasksRouteImport } from './routes/app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppPlannerRouteImport } from './routes/app.planner'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
-import { Route as AppHabitsRouteImport } from './routes/app.habits'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCalendarRouteImport } from './routes/app.calendar'
@@ -65,11 +64,6 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
-const AppHabitsRoute = AppHabitsRouteImport.update({
-  id: '/habits',
-  path: '/habits',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppGoalsRoute = AppGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
@@ -112,7 +106,6 @@ export interface FileRoutesByFullPath {
   '/app/calendar': typeof AppCalendarRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/habits': typeof AppHabitsRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
   '/app/settings': typeof AppSettingsRoute
@@ -129,7 +122,6 @@ export interface FileRoutesByTo {
   '/app/calendar': typeof AppCalendarRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/habits': typeof AppHabitsRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
   '/app/settings': typeof AppSettingsRoute
@@ -147,7 +139,6 @@ export interface FileRoutesById {
   '/app/calendar': typeof AppCalendarRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/habits': typeof AppHabitsRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
   '/app/settings': typeof AppSettingsRoute
@@ -166,7 +157,6 @@ export interface FileRouteTypes {
     | '/app/calendar'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/habits'
     | '/app/notifications'
     | '/app/planner'
     | '/app/settings'
@@ -183,7 +173,6 @@ export interface FileRouteTypes {
     | '/app/calendar'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/habits'
     | '/app/notifications'
     | '/app/planner'
     | '/app/settings'
@@ -200,7 +189,6 @@ export interface FileRouteTypes {
     | '/app/calendar'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/habits'
     | '/app/notifications'
     | '/app/planner'
     | '/app/settings'
@@ -273,13 +261,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/habits': {
-      id: '/app/habits'
-      path: '/habits'
-      fullPath: '/app/habits'
-      preLoaderRoute: typeof AppHabitsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/goals': {
       id: '/app/goals'
       path: '/goals'
@@ -331,7 +312,6 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGoalsRoute: typeof AppGoalsRoute
-  AppHabitsRoute: typeof AppHabitsRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPlannerRoute: typeof AppPlannerRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -344,7 +324,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGoalsRoute: AppGoalsRoute,
-  AppHabitsRoute: AppHabitsRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPlannerRoute: AppPlannerRoute,
   AppSettingsRoute: AppSettingsRoute,

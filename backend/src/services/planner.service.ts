@@ -372,4 +372,148 @@ export class PlannerService {
       recommendations: [],
     };
   }
+
+  /**
+   * Creates a manual schedule block
+   */
+  static async createBlockForUser(
+    userId: string,
+    payload: { title: string; block_type: string; start_time: string; end_time: string; color?: string }
+  ) {
+    const { data, error } = await supabase
+      .from('schedule_blocks')
+      .insert({
+        user_id: userId,
+        title: payload.title,
+        block_type: payload.block_type,
+        start_time: payload.start_time,
+        end_time: payload.end_time,
+        color: payload.color || 'lavender',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new AppError(`Failed to create block: ${error.message}`, 400);
+    }
+
+    return data;
+  }
+
+  /**
+   * Updates an existing schedule block
+   */
+  static async updateBlockForUser(
+    blockId: string,
+    userId: string,
+    payload: { title?: string; block_type?: string; start_time?: string; end_time?: string; color?: string }
+  ) {
+    // Verify owner
+    const { data: existing, error: existError } = await supabase
+      .from('schedule_blocks')
+      .select('id')
+      .eq('id', blockId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existError || !existing) {
+      throw new AppError('Block not found or unauthorized', 404);
+    }
+
+    const updatePayload: Record<string, any> = {};
+    if (payload.title !== undefined) updatePayload.title = payload.title;
+    if (payload.block_type !== undefined) updatePayload.block_type = payload.block_type;
+    if (payload.start_time !== undefined) updatePayload.start_time = payload.start_time;
+    if (payload.end_time !== undefined) updatePayload.end_time = payload.end_time;
+    if (payload.color !== undefined) updatePayload.color = payload.color;
+
+    const { data, error } = await supabase
+      .from('schedule_blocks')
+      .update(updatePayload)
+      .eq('id', blockId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new AppError(`Failed to update block: ${error.message}`, 400);
+    }
+
+    return data;
+  }
+
+  /**
+   * Deletes a schedule block
+   */
+  static async deleteBlockForUser(blockId: string, userId: string): Promise<void> {
+    const { data: existing, error: existError } = await supabase
+      .from('schedule_blocks')
+      .select('id')
+      .eq('id', blockId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existError || !existing) {
+      throw new AppError('Block not found or unauthorized', 404);
+    }
+
+    const { error } = await supabase
+      .from('schedule_blocks')
+      .delete()
+      .eq('id', blockId)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new AppError(`Failed to delete block: ${error.message}`, 400);
+    }
+  }
+
+  /**
+   * Regenerates a single schedule block using Gemini with scientific rationale
+   */
+  static async regenerateBlockForUser(blockId: string, userId: string) {
+    const { data: existing, error: existError } = await supabase
+      .from('schedule_blocks')
+      .select('*')
+      .eq('id', blockId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existError || !existing) {
+      throw new AppError('Block not found or unauthorized', 404);
+    }
+
+    // Compute duration in minutes
+    const startMs = new Date(existing.start_time).getTime();
+    const endMs = new Date(existing.end_time).getTime();
+    const durationMinutes = Math.round((endMs - startMs) / 60000);
+
+    const provider = getAIProvider();
+    const gen = await (provider as any).regenerateSingleBlock(
+      existing.title,
+      existing.block_type,
+      durationMinutes
+    );
+
+    const { data, error } = await supabase
+      .from('schedule_blocks')
+      .update({
+        title: gen.title,
+        block_type: gen.block_type,
+        color: gen.color,
+      })
+      .eq('id', blockId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new AppError(`Failed to save regenerated block: ${error.message}`, 400);
+    }
+
+    return {
+      block: data,
+      rationale: gen.rationale,
+    };
+  }
 }

@@ -16,4 +16,7 @@ router.route('/:id')
   .put(validateGoalUpdateInput, GoalController.updateGoal)
   .delete(GoalController.deleteGoal);
 
+router.route('/:id/roadmap/regenerate')
+  .post(GoalController.regenerateRoadmap);
+
 export default router;

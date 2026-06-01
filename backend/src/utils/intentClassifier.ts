@@ -4,12 +4,8 @@ export class AssistantIntentClassifier {
   /**
    * Evaluates text prompt patterns to classify intent category
    */
-  static classify(message: string): 'planning' | 'productivity_analysis' | 'schedule_optimization' | 'task_management' | 'habit_coaching' | 'daily_briefing' | 'life_score' | 'goal_management' | 'demo_mode' | 'general_chat' {
+  static classify(message: string): 'planning' | 'productivity_analysis' | 'schedule_optimization' | 'task_management' | 'habit_coaching' | 'daily_briefing' | 'life_score' | 'goal_management' | 'general_chat' {
     const text = message.toLowerCase();
-
-    if (text.includes('enable demo mode') || text.includes('seed demo')) {
-      return 'demo_mode';
-    }
 
     if (
       text.includes('good morning') || 
@@ -104,26 +100,6 @@ export class AssistantIntentClassifier {
     const text = message.toLowerCase();
     const todayStr = new Date().toISOString().split('T')[0];
     const goalsList = context.goals || [];
-
-    // ─── DEMO MODE ───────────────────────────────────────────────────────────
-    if (intent === 'demo_mode') {
-      return {
-        text: `### 🎓 Hackathon Demo Mode Enabled!
-        
-Engineering Student persona loaded successfully:
-* 📝 **Seeded Tasks**: Striver DSA Sheet, Portfolio Web, placement resume, AWS prep.
-* 🔥 **Seeded Habits**: Gym, Code, Technical Reading (with 14 days of compliance logs).
-* 📅 **Seeded Planner Blocks**: 6 custom slots mapped cleanly to your grid today!
-* 🎓 **Seeded Goals**: AWS Certification, Complete DSA, summer internship.
-
-*Next Best Action: Type **'Start my day'** to view your flagship briefing dashboard!*`,
-        action: {
-          type: 'enable_demo',
-          requiresConfirmation: false,
-          payload: {}
-        }
-      };
-    }
 
     // ─── GOAL MANAGEMENT ──────────────────────────────────────────────────────
     if (intent === 'goal_management') {
