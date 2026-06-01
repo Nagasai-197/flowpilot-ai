@@ -560,7 +560,7 @@ function GoalCard({
   onDelete: (g: Goal) => void;
   onComplete?: (g: Goal) => void;
   updateGoal: (g: any) => void;
-  regenerateRoadmap: (id: string) => void;
+  regenerateRoadmap: (id: string) => Promise<any>;
   createMilestone: (payload: { goalId: string; title: string }) => Promise<any>;
   updateMilestone: (payload: {
     goalId: string;

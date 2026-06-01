@@ -21,7 +21,6 @@ import { Route as AppPlannerRouteImport } from './routes/app.planner'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCoachRouteImport } from './routes/app.coach'
-import { Route as AppCalendarRouteImport } from './routes/app.calendar'
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 
 const SignupRoute = SignupRouteImport.update({
@@ -84,11 +83,6 @@ const AppCoachRoute = AppCoachRouteImport.update({
   path: '/coach',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCalendarRoute = AppCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => AppRoute,
-} as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
@@ -101,7 +95,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/calendar': typeof AppCalendarRoute
   '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
@@ -117,7 +110,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/calendar': typeof AppCalendarRoute
   '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
@@ -134,7 +126,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/calendar': typeof AppCalendarRoute
   '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
@@ -152,7 +143,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/calendar'
     | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
@@ -168,7 +158,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/calendar'
     | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
@@ -184,7 +173,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/calendar'
     | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
@@ -289,13 +277,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCoachRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/calendar': {
-      id: '/app/calendar'
-      path: '/calendar'
-      fullPath: '/app/calendar'
-      preLoaderRoute: typeof AppCalendarRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/api/$': {
       id: '/api/$'
       path: '/api/$'
@@ -307,7 +288,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppCalendarRoute: typeof AppCalendarRoute
   AppCoachRoute: typeof AppCoachRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGoalsRoute: typeof AppGoalsRoute
@@ -319,7 +299,6 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppCalendarRoute: AppCalendarRoute,
   AppCoachRoute: AppCoachRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGoalsRoute: AppGoalsRoute,

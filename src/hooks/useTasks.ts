@@ -13,6 +13,8 @@ export interface Task {
   position?: number;
   created_at: string;
   updated_at?: string;
+  goal_id?: string;
+  milestone_id?: string;
 }
 
 const TASKS_QUERY_KEY = ["tasks"] as const;

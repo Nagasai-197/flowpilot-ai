@@ -8,7 +8,6 @@ import { globalLimiter } from "./middlewares/rateLimiter.js";
 import authRoutes from "./routes/auth.routes.js";
 import taskRoutes from "./routes/task.routes.js";
 import habitRoutes from "./routes/habit.routes.js";
-import analyticsRoutes from "./routes/analytics.routes.js";
 import plannerRoutes from "./routes/planner.routes.js";
 import assistantRoutes from "./routes/assistant.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
@@ -84,9 +83,6 @@ app.use("/api/tasks", taskRoutes);
 
 // Habit Tracking Routes
 app.use("/api/habits", habitRoutes);
-
-// Analytics System Routes
-app.use("/api/analytics", analyticsRoutes);
 
 // AI Planner Routes
 app.use("/api/planner", plannerRoutes);

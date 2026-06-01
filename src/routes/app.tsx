@@ -8,7 +8,6 @@ import {
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
-import { AIWidget } from "@/components/app/AIWidget";
 import { useAuth } from "../hooks/useAuth";
 import { Loader2, X, Play, Pause, Square, Award, Brain, Target, Sparkles, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -272,7 +271,6 @@ function AppLayout() {
         <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
           <Outlet />
         </main>
-        <AIWidget />
       </div>
 
       {/* Global Add Task Modal overlay */}
