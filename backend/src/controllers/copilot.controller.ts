@@ -350,6 +350,52 @@ export class CopilotController {
       const lifeScoreVal = (taskRatio * 0.40) + (habitConsistency * 0.30) + (goalProgress * 0.20) + (plannerAdherence * 0.10);
       const lifeScore = Math.min(100, Math.max(0, Math.round(lifeScoreVal)));
 
+      // 7b. Calculations: Previous Week's AI Life Score (for dynamic trend)
+      let lifeScoreTrend = 'New Account';
+      if (tasks.length > 0 || habits.length > 0) {
+        // Calculate previous week's tasks ratio
+        const prevTasks = tasks.filter((t) => {
+          const createdAt = new Date(t.created_at || t.due_date || todayStr);
+          return createdAt.getTime() < new Date(sevenDaysAgoStr).getTime();
+        });
+        const prevCompletedTasks = prevTasks.filter((t) => {
+          const completedAt = t.updated_at ? new Date(t.updated_at) : null;
+          return t.status === 'done' && completedAt && completedAt.getTime() < new Date(sevenDaysAgoStr).getTime();
+        });
+        const prevTaskRatio = prevTasks.length > 0
+          ? (prevCompletedTasks.length / prevTasks.length) * 100
+          : 100;
+
+        // Calculate previous week's habit consistency
+        const fourteenDaysAgoStr = new Date(new Date().setDate(new Date().getDate() - 14)).toISOString().split('T')[0];
+        const prevLogs = rawLogs?.filter((log) => {
+          if (!log.completed_at) return false;
+          const logDate = log.completed_at.split('T')[0];
+          return logDate >= fourteenDaysAgoStr && logDate < sevenDaysAgoStr;
+        }) || [];
+        const prevHabitConsistency = habits.length > 0
+          ? Math.min(100, Math.round((prevLogs.length / (7 * habits.length)) * 100))
+          : 100;
+
+        const prevGoalProgress = activeGoals.length > 0
+          ? Math.min(100, Math.round(activeGoals.reduce((acc, g) => acc + (g.progress || 0), 0) / activeGoals.length))
+          : 100;
+
+        const prevPlannerAdherence = prevLogs.length > 0 || prevCompletedTasks.length > 0 ? 50 : 100;
+
+        const prevLifeScoreVal = (prevTaskRatio * 0.40) + (prevHabitConsistency * 0.30) + (prevGoalProgress * 0.20) + (prevPlannerAdherence * 0.10);
+        const prevLifeScore = Math.min(100, Math.max(0, Math.round(prevLifeScoreVal)));
+
+        const scoreDiff = lifeScore - prevLifeScore;
+        if (scoreDiff > 0) {
+          lifeScoreTrend = `+${scoreDiff}% compared to last week`;
+        } else if (scoreDiff < 0) {
+          lifeScoreTrend = `${scoreDiff}% compared to last week`;
+        } else {
+          lifeScoreTrend = `0% change compared to last week`;
+        }
+      }
+
       // 8. Calculations: Weekly focus Hours
       const { data: weeklyBlocks } = await supabase
         .from('schedule_blocks')
@@ -473,6 +519,7 @@ export class CopilotController {
             habitConsistency,
             consistencyBadge,
             currentStreak,
+            lifeScoreTrend,
           },
           briefing: {
             todayFocus,

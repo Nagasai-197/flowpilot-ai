@@ -37,7 +37,7 @@ function Dashboard() {
     queryKey: ["copilot"],
     queryFn: async () => {
       const res = await api.get("/analytics/copilot");
-      return res.data.data;
+      return res.data;
     }
   });
 
@@ -112,6 +112,7 @@ function Dashboard() {
   const habitConsistency = copilotSummary?.scores?.habitConsistency ?? 0;
   const consistencyBadge = copilotSummary?.scores?.consistencyBadge ?? 'Average';
   const currentStreak = copilotSummary?.scores?.currentStreak ?? 0;
+  const lifeScoreTrend = copilotSummary?.scores?.lifeScoreTrend ?? "New Account";
 
   const todayFocus = copilotSummary?.briefing?.todayFocus ?? 'Create high-priority tasks to begin!';
   const nextBestAction = copilotSummary?.briefing?.nextBestAction ?? 'Schedule a Focus Sprint';
@@ -128,7 +129,7 @@ function Dashboard() {
     { 
       label: "AI Life Score", 
       value: `${lifeScore}/100`, 
-      detail: "+3% compared to last week", 
+      detail: lifeScoreTrend, 
       icon: Award, 
       color: "lavender",
       desc: "Overall balance score based on Tasks, Habits, Goals, and Planner adherence"
