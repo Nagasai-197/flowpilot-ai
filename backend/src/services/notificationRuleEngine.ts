@@ -28,6 +28,8 @@ export class NotificationRuleEngine {
       const todayStartIso = todayStart.toISOString();
       const todayEndIso = todayEnd.toISOString();
 
+      let todayLogs: any[] | null = null;
+
       // ── Fetch existing notifications created today to avoid duplicate spam ──
       const { data: existingToday } = await supabase
         .from('notifications')
@@ -105,12 +107,14 @@ export class NotificationRuleEngine {
 
       if (habits && habits.length > 0) {
         // Fetch today's habit logs
-        const { data: todayLogs } = await supabase
+        const { data: todayLogsData } = await supabase
           .from('habit_logs')
           .select('habit_id')
           .eq('user_id', userId)
           .gte('completed_at', todayStartIso)
           .lte('completed_at', todayEndIso);
+        
+        todayLogs = todayLogsData;
 
         const completedHabitIds = new Set((todayLogs || []).map((l) => l.habit_id));
 
@@ -175,6 +179,66 @@ export class NotificationRuleEngine {
             'low'
           );
         }
+      }
+
+      // ── Rule 6: Goal Milestones & Targets ──────────────────────────────
+      let goals: any[] = [];
+      try {
+        const { data: goalsData } = await supabase
+          .from('goals')
+          .select('id, title, progress, target_date, status')
+          .eq('user_id', userId);
+        goals = goalsData || [];
+      } catch (err: any) {
+        logger.warn(`Could not read goals for notifications: ${err.message}`);
+      }
+
+      for (const goal of goals) {
+        if (goal.status === 'active') {
+          if (goal.progress >= 80 && goal.progress < 100) {
+            await mayCreate(
+              'goal_alert',
+              `🎯 Milestone Near: ${goal.title}`,
+              `You are at ${goal.progress}% progress for "${goal.title}". Just a little more focus to cross the finish line!`,
+              'medium'
+            );
+          }
+          if (goal.target_date && new Date(goal.target_date).getTime() < Date.now()) {
+            await mayCreate(
+              'goal_alert',
+              `⚠️ Goal Target Overdue: ${goal.title}`,
+              `Your goal "${goal.title}" target date was ${goal.target_date.split('T')[0]}. Review and adjust your plan in the Goals sheet.`,
+              'high'
+            );
+          }
+        }
+      }
+
+      // ── Rule 7: Planner & AI Recommendations ─────────────────────────
+      const { data: todayBlocks } = await supabase
+        .from('schedule_blocks')
+        .select('id')
+        .eq('user_id', userId)
+        .gte('start_time', todayStartIso)
+        .lte('start_time', todayEndIso);
+
+      if (!todayBlocks || todayBlocks.length === 0) {
+        await mayCreate(
+          'ai_recommendation',
+          '🤖 AI Planner Recommendation',
+          'Establish dynamic structure for your workspace today. Click "Regenerate Plan" on the dashboard to build an optimized routine.',
+          'medium'
+        );
+      }
+
+      // ── Rule 8: Achievement Milestones & Streak Warnings ─────────────
+      if (habits && habits.length > 0 && todayLogs && todayLogs.length === habits.length) {
+        await mayCreate(
+          'achievement_milestone',
+          '🏆 Achievement: Perfect Habit Day!',
+          `Incredible consistency! You checked off all ${habits.length} habits today. Your momentum is unstoppable!`,
+          'high'
+        );
       }
 
       logger.info(`NotificationRuleEngine: Generated ${generated} new notifications for user ${userId}`);

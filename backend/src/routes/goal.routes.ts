@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { GoalController } from '../controllers/goal.controller.js';
 import { requireAuth } from '../middlewares/auth.middleware.js';
-import { validateGoalInput } from '../middlewares/validation.js';
+import { validateGoalInput, validateGoalUpdateInput } from '../middlewares/validation.js';
 
 const router = Router();
 
@@ -13,7 +13,7 @@ router.route('/')
   .post(validateGoalInput, GoalController.createGoal);
 
 router.route('/:id')
-  .put(validateGoalInput, GoalController.updateGoal)
+  .put(validateGoalUpdateInput, GoalController.updateGoal)
   .delete(GoalController.deleteGoal);
 
 export default router;

@@ -1,10 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Filter, LayoutGrid, List, Calendar as CalIcon, Sparkles, Flag, Trash2, X, ArrowRight, ArrowLeft, Edit2 } from "lucide-react";
+import {
+  Plus, Search, Flag, Trash2, X, Edit2, LayoutGrid, List,
+  Calendar as CalIcon, Sparkles
+} from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useTasks, Task } from "../hooks/useTasks";
 import { toast } from "sonner";
+import {
+  DndContext,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  useDroppable
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 export const Route = createFileRoute("/app/tasks")({
   component: Tasks,
@@ -12,7 +35,7 @@ export const Route = createFileRoute("/app/tasks")({
 
 function Tasks() {
   const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
-  const { tasks, isLoading, isError, createTask, updateTask, deleteTask } = useTasks();
+  const { tasks, isLoading, isError, createTask, updateTask, deleteTask, moveTask, setTasksOptimistic } = useTasks();
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,6 +43,7 @@ function Tasks() {
 
   // Create dialog state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [createStatus, setCreateStatus] = useState<Task["status"]>("todo");
   const [newTitle, setNewTitle] = useState("");
   const [newTag, setNewTag] = useState("Eng");
   const [newPriority, setNewPriority] = useState<"low" | "med" | "high">("med");
@@ -34,6 +58,21 @@ function Tasks() {
   const [editColor, setEditColor] = useState("lavender");
   const [editDueDate, setEditDueDate] = useState("");
   const [editStatus, setEditStatus] = useState<Task["status"]>("todo");
+
+  // Drag Overlay active ID state
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // DnD Sensors config (optimally balanced for desktop click vs drag & touch screens)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const openCreate = (status: Task["status"]) => {
+    setCreateStatus(status);
+    setIsModalOpen(true);
+  };
 
   const openEdit = (t: Task) => {
     setEditTask(t);
@@ -56,7 +95,7 @@ function Tasks() {
       title: newTitle.trim(),
       tag: newTag,
       priority: newPriority,
-      status: "todo",
+      status: createStatus,
       color: newColor,
       due_date: newDueDate || undefined,
     });
@@ -91,23 +130,7 @@ function Tasks() {
     setEditTask(null);
   };
 
-  const shiftStatus = (id: string, currentStatus: string, direction: "next" | "prev") => {
-    const statusOrder: Task["status"][] = ["todo", "doing", "review", "done"];
-    const currentIndex = statusOrder.indexOf(currentStatus as Task["status"]);
-    let newIndex = currentIndex;
-    
-    if (direction === "next" && currentIndex < statusOrder.length - 1) {
-      newIndex += 1;
-    } else if (direction === "prev" && currentIndex > 0) {
-      newIndex -= 1;
-    }
-
-    if (newIndex !== currentIndex) {
-      updateTask({ id, status: statusOrder[newIndex] });
-    }
-  };
-
-  // Filter task list dynamically
+  // Filter task list dynamically based on search query & priority dropdown
   const filteredTasks = tasks.filter((t) => {
     const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (t.tag || "Task").toLowerCase().includes(searchQuery.toLowerCase());
@@ -115,12 +138,115 @@ function Tasks() {
     return matchesSearch && matchesPriority;
   });
 
+  // Re-organize filtered task items into visual Kanban lists sorted by position/date
   const columns = [
-    { id: "todo", title: "To do", tasks: filteredTasks.filter((t) => t.status === "todo") },
-    { id: "doing", title: "In progress", tasks: filteredTasks.filter((t) => t.status === "doing") },
-    { id: "review", title: "In review", tasks: filteredTasks.filter((t) => t.status === "review") },
-    { id: "done", title: "Done", tasks: filteredTasks.filter((t) => t.status === "done") },
+    { id: "todo", title: "To do", tasks: filteredTasks.filter((t) => t.status === "todo").sort((a, b) => (a.position ?? 0) - (b.position ?? 0)) },
+    { id: "doing", title: "In progress", tasks: filteredTasks.filter((t) => t.status === "doing").sort((a, b) => (a.position ?? 0) - (b.position ?? 0)) },
+    { id: "review", title: "In review", tasks: filteredTasks.filter((t) => t.status === "review").sort((a, b) => (a.position ?? 0) - (b.position ?? 0)) },
+    { id: "done", title: "Done", tasks: filteredTasks.filter((t) => t.status === "done").sort((a, b) => (a.position ?? 0) - (b.position ?? 0)) },
   ];
+
+  const activeTask = tasks.find((t) => t.id === activeId);
+
+  // DnD Handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
+
+    if (activeIdStr === overIdStr) return;
+
+    const activeTaskItem = tasks.find((t) => t.id === activeIdStr);
+    if (!activeTaskItem) return;
+
+    const isOverTask = tasks.some((t) => t.id === overIdStr);
+    const isOverColumn = ["todo", "doing", "review", "done"].includes(overIdStr);
+
+    let targetStatus: Task["status"] | null = null;
+
+    if (isOverColumn) {
+      targetStatus = overIdStr as Task["status"];
+    } else if (isOverTask) {
+      const overTaskItem = tasks.find((t) => t.id === overIdStr);
+      if (overTaskItem) {
+        targetStatus = overTaskItem.status;
+      }
+    }
+
+    if (targetStatus && activeTaskItem.status !== targetStatus) {
+      setTasksOptimistic((prev) => {
+        return prev.map((t) => {
+          if (t.id === activeIdStr) {
+            return { ...t, status: targetStatus! };
+          }
+          return t;
+        });
+      });
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over) return;
+
+    const activeIdStr = active.id as string;
+    const overIdStr = over.id as string;
+
+    const activeTaskItem = tasks.find((t) => t.id === activeIdStr);
+    if (!activeTaskItem) return;
+
+    const isOverColumn = ["todo", "doing", "review", "done"].includes(overIdStr);
+    let targetStatus: Task["status"] = activeTaskItem.status;
+
+    if (isOverColumn) {
+      targetStatus = overIdStr as Task["status"];
+    } else {
+      const overTaskItem = tasks.find((t) => t.id === overIdStr);
+      if (overTaskItem) {
+        targetStatus = overTaskItem.status;
+      }
+    }
+
+    const columnTasks = tasks.filter((t) => t.status === targetStatus && t.id !== activeIdStr);
+    
+    let finalIndex = columnTasks.length;
+    if (!isOverColumn) {
+      const overIndex = columnTasks.findIndex((t) => t.id === overIdStr);
+      if (overIndex !== -1) {
+        finalIndex = overIndex;
+      }
+    }
+
+    setTasksOptimistic((prev) => {
+      const filtered = prev.filter((t) => t.id !== activeIdStr);
+      const activeItemCopy = prev.find((t) => t.id === activeIdStr);
+      if (!activeItemCopy) return prev;
+      
+      const updatedItem = { ...activeItemCopy, status: targetStatus, position: finalIndex };
+      const statusTasks = filtered.filter((t) => t.status === targetStatus);
+      const otherTasks = filtered.filter((t) => t.status !== targetStatus);
+      
+      statusTasks.splice(finalIndex, 0, updatedItem);
+      const reindexedStatusTasks = statusTasks.map((t, idx) => ({ ...t, position: idx }));
+      
+      return [...otherTasks, ...reindexedStatusTasks];
+    });
+
+    moveTask({
+      id: activeIdStr,
+      status: targetStatus,
+      position: finalIndex,
+    });
+
+    toast.success("Task updated & layout preserved!");
+  };
 
   if (isLoading) {
     return (
@@ -190,7 +316,7 @@ function Tasks() {
             ))}
           </div>
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => openCreate("todo")}
             className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-medium text-background hover:opacity-90 cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" /> Add task
@@ -202,85 +328,63 @@ function Tasks() {
         <div className="flex items-center gap-2 text-xs">
           <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
           <span className="font-medium">AI suggestion:</span>
-          <span className="text-muted-foreground">FlowPilot auto-arranges tasks inside high-energy morning time slots to boost focus.</span>
+          <span className="text-muted-foreground">Drag and drop your tasks across columns to quickly triage and manage your daily engineering flow.</span>
         </div>
       </div>
 
-      {/* Kanban Board View */}
+      {/* Kanban Board View with Full DnD support */}
       {view === "kanban" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {columns.map((col) => (
-            <div key={col.id} className="rounded-3xl border border-border/60 bg-secondary/40 p-3 min-h-[300px]">
-              <div className="flex items-center justify-between px-2 py-1.5">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  {col.title} <span className="rounded-full bg-secondary dark:bg-card px-1.5 text-xs text-muted-foreground">{col.tasks.length}</span>
-                </div>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="grid h-6 w-6 place-items-center rounded-lg text-muted-foreground hover:bg-secondary cursor-pointer"
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {columns.map((col) => (
+              <DroppableColumn 
+                key={col.id} 
+                id={col.id} 
+                title={col.title} 
+                count={col.tasks.length}
+                onPlusClick={() => openCreate(col.id as Task["status"])}
+              >
+                <SortableContext 
+                  items={col.tasks.map((t) => t.id)} 
+                  strategy={verticalListSortingStrategy}
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="mt-2 space-y-2">
-                {col.tasks.length === 0 ? (
-                  <div className="flex h-24 items-center justify-center rounded-2xl border border-dashed border-border/40 text-center text-xs text-muted-foreground">
-                    Empty column
-                  </div>
-                ) : (
-                  col.tasks.map((t, i) => (
-                    <motion.div
-                      key={t.id}
-                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="group rounded-2xl border border-border/60 bg-card p-3 shadow-soft transition-all hover:shadow-float"
-                    >
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="rounded-full px-2 py-0.5 font-medium"
-                          style={{ background: `color-mix(in oklab, var(--${t.color || 'lavender'}) 65%, var(--card))` }}>{t.tag || "Task"}</span>
-                        <div className="flex items-center gap-1.5">
-                          <Flag className={cn("h-3 w-3", (t.priority as string) === "high" && "text-red-500",
-                            ((t.priority as string) === "med" || (t.priority as string) === "medium") && "text-orange-500",
-                            (t.priority as string) === "low" && "text-green-500")} />
-                          <button 
-                            onClick={() => openEdit(t)}
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity cursor-pointer"
-                          >
-                            <Edit2 className="h-3 w-3" />
-                          </button>
-                          <button 
-                            onClick={() => deleteTask(t.id)}
-                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity cursor-pointer"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-sm font-medium leading-snug">{t.title}</div>
-                      <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>{t.due_date ? t.due_date.split('T')[0] : "No due date"}</span>
-                        
-                        {/* Status Shift Controls */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {t.status !== "todo" && (
-                            <button onClick={() => shiftStatus(t.id, t.status, "prev")} className="p-0.5 rounded hover:bg-secondary cursor-pointer">
-                              <ArrowLeft className="h-3 w-3" />
-                            </button>
-                          )}
-                          {t.status !== "done" && (
-                            <button onClick={() => shiftStatus(t.id, t.status, "next")} className="p-0.5 rounded hover:bg-secondary cursor-pointer">
-                              <ArrowRight className="h-3 w-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+                  {col.tasks.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/40 text-center text-xs text-muted-foreground p-8 min-h-[120px] transition-colors group-hover:border-primary/30">
+                      No tasks here — drop to move!
+                    </div>
+                  ) : (
+                    col.tasks.map((t, idx) => (
+                      <SortableTaskCard 
+                        key={t.id} 
+                        t={t} 
+                        idx={idx} 
+                        openEdit={openEdit} 
+                        deleteTask={deleteTask} 
+                      />
+                    ))
+                  )}
+                </SortableContext>
+              </DroppableColumn>
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeId && activeTask ? (
+              <SortableTaskCard 
+                t={activeTask} 
+                idx={0} 
+                openEdit={openEdit} 
+                deleteTask={deleteTask} 
+                isOverlay 
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* List View */}
@@ -566,6 +670,123 @@ function Tasks() {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Droppable Column Component
+function DroppableColumn({ 
+  id, 
+  title, 
+  count, 
+  children, 
+  onPlusClick 
+}: { 
+  id: string; 
+  title: string; 
+  count: number; 
+  children: React.ReactNode; 
+  onPlusClick: () => void 
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      className={cn(
+        "rounded-3xl border p-3.5 min-h-[450px] flex flex-col transition-all duration-200",
+        isOver ? "border-primary/50 bg-secondary/80 shadow-md ring-4 ring-primary/5" : "border-border/60 bg-secondary/40"
+      )}
+    >
+      <div className="flex items-center justify-between px-2 py-1.5 shrink-0">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
+          {title} <span className="rounded-full bg-secondary dark:bg-card px-1.5 py-0.5 text-xs text-muted-foreground font-bold">{count}</span>
+        </div>
+        <button 
+          onClick={onPlusClick}
+          className="grid h-6 w-6 place-items-center rounded-lg text-muted-foreground hover:bg-secondary cursor-pointer transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="mt-2 space-y-2 flex-1 flex flex-col">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Draggable Sortable Task Card Component
+function SortableTaskCard({ 
+  t, 
+  idx, 
+  openEdit, 
+  deleteTask, 
+  isOverlay = false 
+}: { 
+  t: Task; 
+  idx: number; 
+  openEdit: (t: Task) => void; 
+  deleteTask: (id: string) => void; 
+  isOverlay?: boolean 
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: t.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        "group rounded-2xl border border-border/60 bg-card p-3.5 shadow-soft transition-all active:scale-[0.98] select-none touch-none",
+        isOverlay ? "shadow-float scale-102 border-primary/30 cursor-grabbing bg-card/90 backdrop-blur-md" : "hover:shadow-float cursor-grab"
+      )}
+    >
+      <div className="flex items-center justify-between text-[10px]">
+        <span className="rounded-full px-2 py-0.5 font-semibold text-foreground/85"
+          style={{ background: `color-mix(in oklab, var(--${t.color || 'lavender'}) 65%, var(--card))` }}>
+          {t.tag || "Task"}
+        </span>
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Flag className={cn("h-3 w-3", (t.priority as string) === "high" && "text-red-500",
+            ((t.priority as string) === "med" || (t.priority as string) === "medium") && "text-orange-500",
+            (t.priority as string) === "low" && "text-green-500")} />
+          <button 
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => openEdit(t)}
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-opacity cursor-pointer p-0.5"
+          >
+            <Edit2 className="h-3 w-3" />
+          </button>
+          <button 
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => deleteTask(t.id)}
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-opacity cursor-pointer p-0.5"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+      <div className="mt-2 text-sm font-semibold leading-snug text-foreground">{t.title}</div>
+      <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span className="font-semibold">{t.due_date ? t.due_date.split('T')[0] : "No due date"}</span>
+      </div>
     </div>
   );
 }

@@ -81,7 +81,7 @@ export class HabitService {
     // Fetch logs for the last 30 days to calculate completion rate and active streaks
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const startDateStr = thirtyDaysAgo.toLocaleDateString('en-CA');
+    const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
 
     // Query 'completed_at' since 'date' doesn't exist on habit_logs
     const { data: logs, error: logsError } = await supabase
@@ -108,7 +108,7 @@ export class HabitService {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      past7Days.push(d.toLocaleDateString('en-CA'));
+      past7Days.push(d.toISOString().split('T')[0]);
     }
 
     return habits.map((habit) => {

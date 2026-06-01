@@ -66,7 +66,9 @@ const goalSchema = z.object({
   title: z.string().min(1, 'Goal title is required').max(100, 'Goal title exceeds maximum limit of 100 characters'),
   description: z.string().max(1000, 'Goal description exceeds maximum limit of 1000 characters').optional().nullable(),
   category: z.string().max(50, 'Category exceeds maximum limit of 50 characters').optional().nullable(),
+  type: z.string().max(50, 'Type exceeds maximum limit of 50 characters').optional().nullable(),
   status: z.enum(['active', 'paused', 'completed']).default('active').optional(),
+  progress: z.number().min(0).max(100).optional(),
 });
 
 const assistantSchema = z.object({
@@ -75,6 +77,10 @@ const assistantSchema = z.object({
 });
 
 export const validateTaskInput = validateBody(taskSchema);
+const taskUpdateSchema = taskSchema.partial();
+export const validateTaskUpdateInput = validateBody(taskUpdateSchema);
 export const validateHabitInput = validateBody(habitSchema);
 export const validateGoalInput = validateBody(goalSchema);
+const goalUpdateSchema = goalSchema.partial();
+export const validateGoalUpdateInput = validateBody(goalUpdateSchema);
 export const validateAssistantInput = validateBody(assistantSchema);

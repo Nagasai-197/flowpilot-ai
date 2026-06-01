@@ -132,7 +132,8 @@ function Dashboard() {
       detail: lifeScoreTrend, 
       icon: Award, 
       color: "lavender",
-      desc: "Overall balance score based on Tasks, Habits, Goals, and Planner adherence"
+      desc: "Overall balance score based on Tasks, Habits, Goals, and Planner adherence",
+      to: "/app/analytics"
     },
     { 
       label: "Today's Success Score", 
@@ -140,7 +141,8 @@ function Dashboard() {
       detail: successLabel, 
       icon: CheckCircle2, 
       color: "mint",
-      desc: "Completion rate of tasks scheduled and due for today"
+      desc: "Completion rate of tasks scheduled and due for today",
+      to: "/app/analytics"
     },
     { 
       label: "Habit Consistency", 
@@ -148,7 +150,8 @@ function Dashboard() {
       detail: consistencyBadge, 
       icon: TrendingUp, 
       color: "sky",
-      desc: "Completed vs expected habit check-ins over the past 30 days"
+      desc: "Completed vs expected habit check-ins over the past 30 days",
+      to: "/app/habits"
     },
     { 
       label: "Active Streak", 
@@ -156,7 +159,8 @@ function Dashboard() {
       detail: currentStreak >= 5 ? "Consistent 🔥" : "Keep it up!", 
       icon: Flame, 
       color: "peach",
-      desc: "Consecutive days with Success Score >= 70% and Habit Completion >= 70%"
+      desc: "Consecutive days with Success Score >= 70% and Habit Completion >= 70%",
+      to: "/app/habits"
     },
   ];
 
@@ -209,59 +213,69 @@ function Dashboard() {
       {/* 1. Core KPIs Row */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statsList.map((s, i) => (
-          <motion.div
+          <Link
             key={s.label}
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.04 * i }}
-            className={cardClass}
+            to={s.to}
+            className={cn(cardClass, "block cursor-pointer relative group/card")}
           >
-            <div className="flex items-center justify-between">
-              <div className="grid h-9 w-9 place-items-center rounded-xl"
-                style={{ background: `color-mix(in oklab, var(--${s.color}) 65%, var(--card))` }}>
-                <s.icon className="h-4 w-4 text-foreground/80" />
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 * i }}
+              className="h-full flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="grid h-9 w-9 place-items-center rounded-xl transition-transform group-hover/card:scale-105"
+                    style={{ background: `color-mix(in oklab, var(--${s.color}) 65%, var(--card))` }}>
+                    <s.icon className="h-4 w-4 text-foreground/80" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {s.label === "AI Life Score" && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
+                        Active Weights
+                      </span>
+                    )}
+                    <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-y-0.5 translate-x-0.5 transition-all group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:translate-x-0 group-hover/card:text-primary" />
+                  </div>
+                </div>
+                
+                <div className="mt-3.5 flex items-baseline justify-between">
+                  <div className="font-display text-3xl font-semibold tracking-tight">{s.value}</div>
+                  <div className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
+                    s.label === "Active Streak" && currentStreak > 0 ? "bg-orange-500/10 text-orange-500" :
+                    s.label === "Today's Success Score" && successScore >= 70 ? "bg-emerald-500/10 text-emerald-500" :
+                    s.label === "Habit Consistency" && habitConsistency >= 70 ? "bg-sky-500/10 text-sky-500" :
+                    "bg-primary/10 text-primary"
+                  )}>
+                    {s.detail}
+                  </div>
+                </div>
+                
+                <div className="mt-1 text-xs font-semibold text-foreground/80">{s.label}</div>
+                
+                {/* Embedded custom progress bars for stats if applicable */}
+                {s.label === "Today's Success Score" && (
+                  <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div 
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
+                      style={{ width: `${successScore}%` }} 
+                    />
+                  </div>
+                )}
+                {s.label === "Habit Consistency" && (
+                  <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                    <div 
+                      className="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-400 transition-all duration-500" 
+                      style={{ width: `${habitConsistency}%` }} 
+                    />
+                  </div>
+                )}
               </div>
-              {s.label === "AI Life Score" && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                  Active Weights
-                </span>
-              )}
-            </div>
-            
-            <div className="mt-3.5 flex items-baseline justify-between">
-              <div className="font-display text-3xl font-semibold tracking-tight">{s.value}</div>
-              <div className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                s.label === "Active Streak" && currentStreak > 0 ? "bg-orange-500/10 text-orange-500" :
-                s.label === "Today's Success Score" && successScore >= 70 ? "bg-emerald-500/10 text-emerald-500" :
-                s.label === "Habit Consistency" && habitConsistency >= 70 ? "bg-sky-500/10 text-sky-500" :
-                "bg-primary/10 text-primary"
-              )}>
-                {s.detail}
-              </div>
-            </div>
-            
-            <div className="mt-1 text-xs font-semibold text-foreground/80">{s.label}</div>
-            
-            {/* Embedded custom progress bars for stats if applicable */}
-            {s.label === "Today's Success Score" && (
-              <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-                <div 
-                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
-                  style={{ width: `${successScore}%` }} 
-                />
-              </div>
-            )}
-            {s.label === "Habit Consistency" && (
-              <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-                <div 
-                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-400 transition-all duration-500" 
-                  style={{ width: `${habitConsistency}%` }} 
-                />
-              </div>
-            )}
-            
-            <p className="mt-2.5 text-[9px] leading-normal text-muted-foreground">{s.desc}</p>
-          </motion.div>
+              
+              <p className="mt-2.5 text-[9px] leading-normal text-muted-foreground">{s.desc}</p>
+            </motion.div>
+          </Link>
         ))}
       </section>
 

@@ -225,7 +225,7 @@ Working Hours: ${request.context.workingHours}
 7. ACTION DETECTION: Detect if the user wants to create/modify tasks, habits, or goals and set the action field accordingly.
 
 === ACTION RULES ===
-- User wants to create a task → action type: "create_task", payload: {title, priority: "high|med|low", tag, color: "lavender|mint|sky|peach"}
+- User wants to create a task → action type: "create_task", payload: {title, priority: "high|med|low", tag, color: "lavender|mint|sky|peach", status: "todo|doing|review|done"}
 - User wants to regenerate schedule → action type: "regenerate_plan"
 - User wants to delete a task → action type: "delete_task" with requiresConfirmation: true, payload: {id, title}
 - User wants to complete a task → action type: "complete_task" with requiresConfirmation: true, payload: {id, title}
@@ -274,7 +274,7 @@ Return valid JSON matching exactly:
             action: {
               type: 'OBJECT',
               properties: {
-                type: { type: 'STRING', enum: ['reschedule_plan', 'create_task', 'toggle_habit', 'none'] },
+                type: { type: 'STRING', enum: ['regenerate_plan', 'reschedule_plan', 'create_task', 'delete_task', 'complete_task', 'create_goal', 'toggle_habit', 'none'] },
                 payload: { type: 'OBJECT' }
               },
               required: ['type']

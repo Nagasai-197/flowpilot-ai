@@ -249,12 +249,14 @@ export class PlannerService {
       }
 
       // 5. Database Transaction: Clear today's existing schedule blocks
+      const localStartIso = `${targetDateStr}T00:00:00${offsetStr}`;
+      const localEndIso = `${targetDateStr}T23:59:59${offsetStr}`;
       const { error: clearBlocksError } = await supabase
         .from('schedule_blocks')
         .delete()
         .eq('user_id', userId)
-        .gte('start_time', `${targetDateStr}T00:00:00Z`)
-        .lte('start_time', `${targetDateStr}T23:59:59Z`);
+        .gte('start_time', localStartIso)
+        .lte('start_time', localEndIso);
 
       if (clearBlocksError) {
         throw new AppError(`Failed to clear existing schedule: ${clearBlocksError.message}`, 500);
@@ -298,12 +300,56 @@ export class PlannerService {
   static async getCurrentPlanForUser(userId: string, dateStr?: string) {
     const targetDateStr = dateStr || new Date().toISOString().split('T')[0];
 
+    // Fetch user timezone to construct correct local date range
+    let timezone = 'UTC';
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('id', userId)
+        .single();
+      if (profile?.timezone) {
+        timezone = profile.timezone;
+      }
+    } catch (err) {
+      logger.warn(`Failed to fetch timezone in getCurrentPlanForUser: ${err}`);
+    }
+
+    const getTimeZoneOffsetStr = (timeZone: string, date: Date): string => {
+      try {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          timeZone,
+          timeZoneName: 'longOffset'
+        }).formatToParts(date);
+        
+        const tzPart = parts.find(p => p.type === 'timeZoneName');
+        if (!tzPart) return '+00:00';
+        
+        const val = tzPart.value; // e.g. "GMT+5:30" or "GMT-04:00"
+        if (val === 'GMT') return '+00:00';
+        
+        const match = val.match(/GMT([+-])(\d+)(?::(\d+))?/);
+        if (!match) return '+00:00';
+        
+        const sign = match[1];
+        const hours = match[2].padStart(2, '0');
+        const minutes = (match[3] || '00').padStart(2, '0');
+        return `${sign}${hours}:${minutes}`;
+      } catch (err) {
+        return '+00:00';
+      }
+    };
+
+    const offsetStr = getTimeZoneOffsetStr(timezone, new Date(`${targetDateStr}T12:00:00Z`));
+    const localStartIso = `${targetDateStr}T00:00:00${offsetStr}`;
+    const localEndIso = `${targetDateStr}T23:59:59${offsetStr}`;
+
     const { data: blocks, error: blocksError } = await supabase
       .from('schedule_blocks')
       .select('*')
       .eq('user_id', userId)
-      .gte('start_time', `${targetDateStr}T00:00:00Z`)
-      .lte('start_time', `${targetDateStr}T23:59:59Z`)
+      .gte('start_time', localStartIso)
+      .lte('start_time', localEndIso)
       .order('start_time', { ascending: true });
 
     if (blocksError) {

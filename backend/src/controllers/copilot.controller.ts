@@ -13,8 +13,9 @@ export class CopilotController {
    * realistic engineering student workspace profile for the hackathon judges.
    */
   static async enableDemoMode(req: Request, res: Response, next: NextFunction): Promise<void> {
-    if (config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production') {
-      return next(new AppError('Demo seeding is disabled in production environments to protect database integrity.', 403));
+    const isDemoUser = req.user?.email?.toLowerCase().includes('demo') || req.user?.email?.toLowerCase().endsWith('flowpilot.ai');
+    if ((config.NODE_ENV === 'production' || process.env.NODE_ENV === 'production') && !isDemoUser) {
+      return next(new AppError('Demo seeding is restricted in production. Please use a demo account or sign in as demo to seed.', 403));
     }
 
     const userId = req.user?.id;
@@ -243,6 +244,46 @@ export class CopilotController {
       const thirtyDaysAgoStr = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
       const sevenDaysAgoStr = new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0];
 
+      // Fetch user profile timezone for accurate local day boundaries
+      let timezone = 'UTC';
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('timezone')
+          .eq('id', userId)
+          .single();
+        if (profile?.timezone) {
+          timezone = profile.timezone;
+        }
+      } catch (err) {
+        logger.warn(`Failed to fetch timezone in getCopilotSummary: ${err}`);
+      }
+
+      const getTimeZoneOffsetStr = (timeZone: string, date: Date): string => {
+        try {
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            timeZoneName: 'longOffset'
+          }).formatToParts(date);
+          const tzPart = parts.find(p => p.type === 'timeZoneName');
+          if (!tzPart) return '+00:00';
+          const val = tzPart.value;
+          if (val === 'GMT') return '+00:00';
+          const match = val.match(/GMT([+-])(\d+)(?::(\d+))?/);
+          if (!match) return '+00:00';
+          const sign = match[1];
+          const hours = match[2].padStart(2, '0');
+          const minutes = (match[3] || '00').padStart(2, '0');
+          return `${sign}${hours}:${minutes}`;
+        } catch (err) {
+          return '+00:00';
+        }
+      };
+
+      const offsetStr = getTimeZoneOffsetStr(timezone, new Date());
+      const localStartIso = `${todayStr}T00:00:00${offsetStr}`;
+      const localEndIso = `${todayStr}T23:59:59${offsetStr}`;
+
       // 1. Fetch DB Context
       const tasks = await TaskService.getTasksForUser(userId);
       const habits = await HabitService.getHabitsForUser(userId);
@@ -250,8 +291,8 @@ export class CopilotController {
         .from('schedule_blocks')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_time', `${todayStr}T00:00:00Z`)
-        .lte('start_time', `${todayStr}T23:59:59Z`)
+        .gte('start_time', localStartIso)
+        .lte('start_time', localEndIso)
         .order('start_time', { ascending: true });
 
       let goals: any[] = [];
@@ -270,7 +311,7 @@ export class CopilotController {
         .from('habit_logs')
         .select('habit_id, completed_at')
         .eq('user_id', userId)
-        .gte('completed_at', `${thirtyDaysAgoStr}T00:00:00Z`);
+        .gte('completed_at', `${thirtyDaysAgoStr}T00:00:00${offsetStr}`);
 
       const dailyHabitCompletion = new Map<string, number>();
       rawLogs?.forEach((log) => {
@@ -402,7 +443,7 @@ export class CopilotController {
         .select('start_time, end_time')
         .eq('user_id', userId)
         .eq('block_type', 'focus')
-        .gte('start_time', `${sevenDaysAgoStr}T00:00:00Z`);
+        .gte('start_time', `${sevenDaysAgoStr}T00:00:00${offsetStr}`);
 
       let weeklyFocusMinutes = 0;
       weeklyBlocks?.forEach((b) => {
