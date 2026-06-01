@@ -240,6 +240,8 @@ export class CopilotController {
 
     try {
       const todayStr = new Date().toISOString().split('T')[0];
+      const thirtyDaysAgoStr = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0];
+      const sevenDaysAgoStr = new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0];
 
       // 1. Fetch DB Context
       const tasks = await TaskService.getTasksForUser(userId);
@@ -258,111 +260,251 @@ export class CopilotController {
           .from('goals')
           .select('*')
           .eq('user_id', userId);
-        goals = (goalsData || []).map(g => ({
-          ...g,
-          type: g.category ? (g.category.charAt(0).toUpperCase() + g.category.slice(1)) : 'Personal'
-        }));
+        goals = goalsData || [];
       } catch (err: any) {
         logger.warn(`Goals table not queried: ${err.message}`);
       }
 
+      // Query raw habit logs in the last 30 days for streak and consistency calculations
+      const { data: rawLogs } = await supabase
+        .from('habit_logs')
+        .select('habit_id, completed_at')
+        .eq('user_id', userId)
+        .gte('completed_at', `${thirtyDaysAgoStr}T00:00:00Z`);
+
+      const dailyHabitCompletion = new Map<string, number>();
+      rawLogs?.forEach((log) => {
+        if (!log.completed_at) return;
+        const dStr = log.completed_at.split('T')[0];
+        dailyHabitCompletion.set(dStr, (dailyHabitCompletion.get(dStr) || 0) + 1);
+      });
+
       // 2. Calculations: Today's Success Score
-      const todayTasks = tasks.filter(t => t.due_date && t.due_date.split('T')[0] === todayStr);
-      const completedTodayTasks = todayTasks.filter(t => t.status === 'done');
-      const taskRate = todayTasks.length > 0 ? (completedTodayTasks.length / todayTasks.length) : 1;
+      const todayTasks = tasks.filter((t) => t.due_date && t.due_date.split('T')[0] === todayStr);
+      const completedTodayTasks = todayTasks.filter((t) => t.status === 'done');
+      const todaySuccessScore = todayTasks.length > 0
+        ? Math.round((completedTodayTasks.length / todayTasks.length) * 100)
+        : 100;
+      const todaySuccessLabel = todaySuccessScore >= 90 ? 'Outstanding' : todaySuccessScore >= 70 ? 'On Track' : 'Needs Focus';
 
-      // Habit logs today
-      const todayLogs = habits.filter(h => h.days && h.days[h.days.length - 1] === 1);
-      const habitRate = habits.length > 0 ? (todayLogs.length / habits.length) : 1;
+      // Completed habits logs today
+      const completedTodayHabitsCount = habits.filter((h) => h.days && h.days[h.days.length - 1] === 1).length;
 
-      // Planner adherence: calculated dynamically based on real task & habit completion ratios.
-      // If no tasks are due and no habits are tracked today, adherence is 100% (1.0).
-      // Otherwise, we take a balanced weight of task execution (60%) and habit check-in (40%).
-      const focusBlocks = (schedule || []).filter(b => b.type === 'focus');
-      const plannerAdherence = (todayTasks.length === 0 && habits.length === 0)
-        ? 1.0
-        : (0.6 * taskRate + 0.4 * habitRate);
+      // 3. Calculations: Streak Logic
+      let currentStreak = 0;
+      for (let i = 0; i < 30; i++) {
+        const checkDate = new Date();
+        checkDate.setDate(checkDate.getDate() - i);
+        const checkDateStr = checkDate.toLocaleDateString('en-CA');
 
-      const todaySuccessScore = Math.min(100, Math.round(
-        (0.4 * taskRate + 0.4 * habitRate + 0.2 * plannerAdherence) * 100
-      ));
+        const tasksDueOnDay = tasks.filter((t) => t.due_date && t.due_date.split('T')[0] === checkDateStr);
+        const tasksCompletedOnDay = tasksDueOnDay.filter((t) => t.status === 'done');
+        const daySuccess = tasksDueOnDay.length > 0 ? (tasksCompletedOnDay.length / tasksDueOnDay.length) * 100 : 100;
 
-      // 3. Calculations: AI Life Score
-      const totalTasksCount = tasks.length;
-      const completedTasksCount = tasks.filter(t => t.status === 'done').length;
-      const taskRatio = totalTasksCount > 0 ? (completedTasksCount / totalTasksCount) : 1;
+        const habitsCompletedOnDay = dailyHabitCompletion.get(checkDateStr) || 0;
+        const dayHabitPercent = habits.length > 0 ? (habitsCompletedOnDay / habits.length) * 100 : 100;
 
-      const overdueCount = tasks.filter(t => {
-        if (t.status === 'done' || !t.due_date) return false;
-        return t.due_date.split('T')[0] < todayStr;
-      }).length;
+        if (daySuccess >= 70 && dayHabitPercent >= 70) {
+          currentStreak++;
+        } else {
+          // Allow streak to remain active for today if today's criteria isn't met yet but yesterday succeeded
+          if (i === 0) {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = yesterday.toLocaleDateString('en-CA');
 
-      const consistencyRatio = habits.length > 0 
-        ? (habits.reduce((acc, h) => acc + (h.pct || 0), 0) / (habits.length * 100))
-        : 1.0;
+            const yestTasks = tasks.filter((t) => t.due_date && t.due_date.split('T')[0] === yesterdayStr);
+            const yestCompleted = yestTasks.filter((t) => t.status === 'done');
+            const yestSuccess = yestTasks.length > 0 ? (yestCompleted.length / yestTasks.length) * 100 : 100;
 
-      const baseLifeScore = Math.round(
-        (0.3 * taskRatio + 0.3 * consistencyRatio + 0.2 * plannerAdherence + 0.2 * 0.9) * 100
-      );
-      const lifeScore = Math.max(0, Math.min(100, baseLifeScore - (overdueCount * 3)));
+            const yestHabits = dailyHabitCompletion.get(yesterdayStr) || 0;
+            const yestHabitPercent = habits.length > 0 ? (yestHabits / habits.length) * 100 : 100;
 
-      // 4. Sub-scores Breakdowns
-      const workScore = Math.min(100, Math.round(taskRatio * 100));
-      const healthScore = Math.min(100, Math.round(consistencyRatio * 100));
-      const focusHoursScore = Math.min(100, Math.round(plannerAdherence * 100));
-      const consistencyScore = habits.length > 0 ? Math.min(100, Math.max(...habits.map(h => h.streak)) * 8) : 80;
-
-      // 5. Smart Proactive Notifications / Risks
-      const proactiveNotifications: string[] = [];
-      const gymStreakHabit = habits.find(h => h.name.toLowerCase().includes('exercise') || h.name.toLowerCase().includes('coding'));
-      
-      if (gymStreakHabit && gymStreakHabit.streak > 0 && todayLogs.length === 0) {
-        proactiveNotifications.push(`🔥 Your ${gymStreakHabit.streak}-day streak for '${gymStreakHabit.name}' is at risk! Mark it done today.`);
+            if (yestSuccess >= 70 && yestHabitPercent >= 70) {
+              continue;
+            }
+          }
+          break;
+        }
       }
 
+      // 4. Calculations: Habit Consistency (past 30 days)
+      const habitConsistency = habits.length > 0
+        ? Math.min(100, Math.round(habits.reduce((acc, h) => acc + (h.pct || 0), 0) / habits.length))
+        : 100;
+      const consistencyBadge = habitConsistency >= 80 ? 'Consistent' : habitConsistency >= 50 ? 'Average' : 'At Risk';
+
+      // 5. Calculations: Goal Progress
+      const activeGoals = goals.filter((g) => g.status === 'active');
+      const goalProgress = activeGoals.length > 0
+        ? Math.min(100, Math.round(activeGoals.reduce((acc, g) => acc + (g.progress || 0), 0) / activeGoals.length))
+        : 100;
+
+      // 6. Calculations: Planner Adherence
+      const todayTaskRate = todayTasks.length > 0 ? (completedTodayTasks.length / todayTasks.length) : 1.0;
+      const todayHabitRate = habits.length > 0 ? (completedTodayHabitsCount / habits.length) : 1.0;
+      const plannerAdherence = Math.min(100, Math.round(((todayTaskRate + todayHabitRate) / 2) * 100));
+
+      // 7. Calculations: AI Life Score
+      const taskRatio = tasks.length > 0 ? (tasks.filter((t) => t.status === 'done').length / tasks.length) * 100 : 100;
+      const lifeScoreVal = (taskRatio * 0.40) + (habitConsistency * 0.30) + (goalProgress * 0.20) + (plannerAdherence * 0.10);
+      const lifeScore = Math.min(100, Math.max(0, Math.round(lifeScoreVal)));
+
+      // 8. Calculations: Weekly focus Hours
+      const { data: weeklyBlocks } = await supabase
+        .from('schedule_blocks')
+        .select('start_time, end_time')
+        .eq('user_id', userId)
+        .eq('block_type', 'focus')
+        .gte('start_time', `${sevenDaysAgoStr}T00:00:00Z`);
+
+      let weeklyFocusMinutes = 0;
+      weeklyBlocks?.forEach((b) => {
+        if (b.start_time && b.end_time) {
+          const dur = (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 60000;
+          weeklyFocusMinutes += Math.max(0, dur);
+        }
+      });
+      const completedWeeklyHours = Math.round((weeklyFocusMinutes / 60) * 10) / 10;
+
+      // 9. Warnings detection
+      const overdueTasks = tasks.filter((t) => t.status !== 'done' && t.due_date && t.due_date.split('T')[0] < todayStr);
+      const overdueCount = overdueTasks.length;
+      const habitRisk = habitConsistency < 50;
+      const plannerMissing = (schedule || []).length === 0;
+
+      // 10. AI Daily Briefing
+      const unfinishedTasks = tasks
+        .filter((t) => t.status !== 'done')
+        .sort((a, b) => {
+          const priorityWeight = { high: 3, medium: 2, med: 2, low: 1 };
+          const aW = (priorityWeight as any)[a.priority] || 1;
+          const bW = (priorityWeight as any)[b.priority] || 1;
+          return bW - aW;
+        });
+      const todayFocus = unfinishedTasks[0]?.title || 'No unfinished tasks. Focus on establishing new habits!';
+
+      let nextBestAction = 'Schedule a new Focus Sprint';
       if (overdueCount > 0) {
-        proactiveNotifications.push(`⚠️ You have ${overdueCount} overdue tasks impacting your Productivity & Life Score.`);
+        nextBestAction = `Complete overdue task: '${overdueTasks[0].title}'`;
+      } else if (unfinishedTasks.length > 0) {
+        nextBestAction = `Work on high-priority task: '${unfinishedTasks[0].title}'`;
+      } else if (activeGoals.length > 0 && activeGoals.some((g) => g.progress < 100)) {
+        const targetGoal = activeGoals.find((g) => g.progress < 100);
+        nextBestAction = `Advance your goal: '${targetGoal.title}'`;
+      } else if (plannerMissing) {
+        nextBestAction = 'Generate today\'s planner schedule to build structure';
       }
 
-      const highPriorityTasks = tasks.filter(t => t.status !== 'done' && t.priority === 'high');
-      if (highPriorityTasks.length > 0) {
-        proactiveNotifications.push(`🎯 High Priority Load: You have ${highPriorityTasks.length} urgent tasks outstanding.`);
-      }
+      // 11. Recent Activity Feed (Interleaves Task, Habit, Goal, Planner activities)
+      const activities: any[] = [];
 
-      if (focusBlocks.length > 4) {
-        proactiveNotifications.push(`💡 Planner Alert: Highly cognitive schedule today. Protect focus slots.`);
-      }
+      tasks.forEach((t) => {
+        if (t.status === 'done' && t.updated_at) {
+          activities.push({
+            type: 'task_completed',
+            title: `Completed Task: "${t.title}"`,
+            timestamp: t.updated_at,
+            color: t.color || 'mint',
+          });
+        }
+        if (t.created_at) {
+          activities.push({
+            type: 'task_created',
+            title: `Created Task: "${t.title}"`,
+            timestamp: t.created_at,
+            color: t.color || 'mint',
+          });
+        }
+      });
 
-      // 6. Next Best Action
-      const nextTask = highPriorityTasks.find(t => t.status === 'doing') || highPriorityTasks[0] || tasks.find(t => t.status !== 'done');
-      const nextBestAction = nextTask ? `Complete high-priority task: '${nextTask.title}'` : 'Schedule a new Focus Sprint';
+      rawLogs?.forEach((log) => {
+        const habit = habits.find((h) => h.id === log.habit_id);
+        activities.push({
+          type: 'habit_completed',
+          title: `Completed Habit: "${habit ? habit.name : 'Habit'}"`,
+          timestamp: log.completed_at,
+          color: habit ? habit.color : 'sky',
+        });
+      });
 
+      goals.forEach((g) => {
+        if (g.created_at) {
+          activities.push({
+            type: 'goal_created',
+            title: `Created Goal: "${g.title}"`,
+            timestamp: g.created_at,
+            color: 'lavender',
+          });
+        }
+        if (g.updated_at && g.progress > 0) {
+          activities.push({
+            type: 'goal_updated',
+            title: `Progressed Goal: "${g.title}" (${g.progress}%)`,
+            timestamp: g.updated_at,
+            color: 'lavender',
+          });
+        }
+      });
+
+      const uniquePlannerDays = new Set(weeklyBlocks?.map((b) => b.start_time?.split('T')[0]));
+      uniquePlannerDays.forEach((day) => {
+        activities.push({
+          type: 'planner_generated',
+          title: `AI Planner schedule optimized for ${day}`,
+          timestamp: `${day}T08:00:00Z`,
+          color: 'peach',
+        });
+      });
+
+      const recentActivities = activities
+        .filter((a) => a.timestamp)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 10);
+
+      // Return unified analytics packet
       res.status(200).json({
         status: 'success',
         data: {
           scores: {
             lifeScore,
             successScore: todaySuccessScore,
-            breakdown: {
-              work: workScore,
-              health: Math.max(40, healthScore),
-              focus: focusHoursScore,
-              consistency: Math.min(100, Math.max(50, consistencyScore))
-            }
+            successLabel: todaySuccessLabel,
+            habitConsistency,
+            consistencyBadge,
+            currentStreak,
           },
           briefing: {
-            priorities: highPriorityTasks.map(t => t.title),
-            scheduleSummary: `You have ${focusBlocks.length} focus sessions planned (${focusBlocks.length * 60} focus minutes total).`,
-            risks: proactiveNotifications,
-            nextBestAction
+            todayFocus,
+            nextBestAction,
+            warnings: {
+              overdueCount,
+              habitRisk,
+              plannerMissing,
+            },
           },
-          goals: goals.map(g => ({
+          goals: activeGoals.slice(0, 5).map((g) => ({
             id: g.id,
             title: g.title,
-            type: g.type,
-            status: g.status
-          }))
-        }
+            progress: g.progress || 0,
+            targetDate: g.target_date || null,
+            type: g.category ? (g.category.charAt(0).toUpperCase() + g.category.slice(1)) : 'Personal',
+          })),
+          weeklyGoal: {
+            completedHours: completedWeeklyHours,
+            targetHours: 25,
+            percentage: Math.min(100, Math.round((completedWeeklyHours / 25) * 100)),
+          },
+          recentActivities,
+          todayPlanner: (schedule || []).map((b) => ({
+            id: b.id,
+            label: b.label,
+            type: b.block_type || b.type,
+            start_time: b.start_time,
+            end_time: b.end_time,
+            color: b.color || 'lavender',
+          })),
+        },
       });
     } catch (err) {
       next(err);
