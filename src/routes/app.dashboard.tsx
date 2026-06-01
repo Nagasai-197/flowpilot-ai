@@ -50,12 +50,17 @@ function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { generatePlan, isGenerating } = usePlanner();
-  const { habits, toggleHabit } = useHabits();
+  const { habits, toggleHabit, createHabit } = useHabits();
   const { createGoal } = useGoals();
 
   const [quickGoalOpen, setQuickGoalOpen] = useState(false);
   const [quickGoalTitle, setQuickGoalTitle] = useState("");
   const [quickGoalType, setQuickGoalType] = useState("Career");
+
+  const [quickHabitOpen, setQuickHabitOpen] = useState(false);
+  const [quickHabitName, setQuickHabitName] = useState("");
+  const [quickHabitColor, setQuickHabitColor] = useState("mint");
+  const [focusTimerMode, setFocusTimerMode] = useState<"pomodoro" | "extended_focus" | "deep_work">("pomodoro");
 
   // Query high-performance Analytics Copilot summary
   const { data: copilotSummary, isLoading: copilotLoading } = useQuery<any>({
@@ -101,6 +106,34 @@ function Dashboard() {
     } catch (err: any) {
       toast.error(`Goal creation failed: ${err.message}`);
     }
+  };
+
+  const handleQuickHabitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickHabitName.trim()) return;
+    try {
+      await createHabit({
+        name: quickHabitName.trim(),
+        color: quickHabitColor,
+      });
+      toast.success("New daily habit established successfully! 🧘");
+      setQuickHabitName("");
+      setQuickHabitOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    } catch (err: any) {
+      toast.error(`Habit creation failed: ${err.message}`);
+    }
+  };
+
+  const triggerFocusSession = (typeStr: string = "pomodoro") => {
+    window.dispatchEvent(
+      new CustomEvent("start-focus-session", {
+        detail: {
+          type: typeStr,
+          taskTitle: "General Focus Sprint",
+        },
+      })
+    );
   };
 
   if (copilotLoading) {
@@ -159,6 +192,13 @@ function Dashboard() {
     plannerMissing: false,
   };
   const activeGoals = copilotSummary?.goals || [];
+  const focusStats = copilotSummary?.focusStats || {
+    todayFocusHours: 0,
+    weeklyFocusHours: 0,
+    deepWorkStreak: 0,
+    sessionCompletionRate: 100,
+  };
+  const opportunitySignals = copilotSummary?.opportunitySignals || [];
   const weeklyGoal = copilotSummary?.weeklyGoal || {
     completedHours: 0,
     targetHours: 25,
@@ -462,13 +502,13 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Right Column: Habits, Goals, Quick Actions */}
+        {/* Right Column: Habits, Goals, Focus, Quick Actions */}
         <div className="space-y-6">
           {/* Quick Actions Panel */}
           <div className={cn(cardClass, "bg-gradient-to-br from-card to-secondary/35")}>
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> Quick Command Bar
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> Quick Actions Bar
               </h3>
             </div>
 
@@ -476,21 +516,41 @@ function Dashboard() {
               <button
                 onClick={handleRegenerate}
                 disabled={isGenerating}
-                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-soft cursor-pointer flex flex-col items-center gap-1"
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-float cursor-pointer flex flex-col items-center gap-1.5"
               >
-                <Calendar className="h-5 w-5 text-primary" />
+                <Calendar className="h-5 w-5 text-primary animate-pulse" />
                 <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
-                  Optimize planner
+                  Generate Plan
                 </span>
               </button>
 
               <button
                 onClick={() => setQuickGoalOpen((v) => !v)}
-                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-soft cursor-pointer flex flex-col items-center gap-1"
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-float cursor-pointer flex flex-col items-center gap-1.5"
               >
-                <Target className="h-5 w-5 text-indigo-500" />
+                <Target className="h-5 w-5 text-indigo-500 animate-pulse" />
                 <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
                   Add AI Goal
+                </span>
+              </button>
+
+              <button
+                onClick={() => triggerFocusSession(focusTimerMode)}
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-float cursor-pointer flex flex-col items-center gap-1.5"
+              >
+                <Brain className="h-5 w-5 text-pink-500 animate-pulse" />
+                <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
+                  Start Focus
+                </span>
+              </button>
+
+              <button
+                onClick={() => setQuickHabitOpen((v) => !v)}
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-float cursor-pointer flex flex-col items-center gap-1.5"
+              >
+                <Repeat className="h-5 w-5 text-emerald-500 animate-pulse" />
+                <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
+                  Create Habit
                 </span>
               </button>
             </div>
@@ -516,6 +576,19 @@ function Dashboard() {
                       className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none"
                     />
                   </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Category</span>
+                    <select
+                      value={quickGoalType}
+                      onChange={(e) => setQuickGoalType(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-1.5 text-xs outline-none cursor-pointer"
+                    >
+                      <option value="Career">Career</option>
+                      <option value="Health">Health</option>
+                      <option value="Learning">Learning</option>
+                      <option value="Personal">Personal</option>
+                    </select>
+                  </label>
                   <div className="flex gap-2 justify-end">
                     <button
                       type="button"
@@ -537,20 +610,148 @@ function Dashboard() {
             </AnimatePresence>
           </div>
 
-          {/* Integrated Habits Widget Cockpit */}
+          {/* FEATURE 1 — FOCUS ENVIRONMENT CARD */}
           <div className={cardClass}>
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Repeat className="h-4 w-4 text-primary" /> Integrated Habits Cockpit
+                <Brain className="h-4 w-4 text-pink-500 animate-pulse" /> Focus Session Cockpit
               </h3>
+              <span className="rounded-full bg-pink-500/10 border border-pink-500/20 px-2 py-0.5 text-[8px] font-bold uppercase text-pink-600 dark:text-pink-400">
+                Streak: {focusStats.deepWorkStreak}d 🔥
+              </span>
             </div>
 
+            <div className="grid grid-cols-3 gap-2.5 text-center mb-4">
+              <div className="bg-secondary/30 rounded-2xl p-2.5 border border-border/30">
+                <div className="text-xs font-bold font-mono">{focusStats.todayFocusHours}h</div>
+                <div className="text-[8px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">Today</div>
+              </div>
+              <div className="bg-secondary/30 rounded-2xl p-2.5 border border-border/30">
+                <div className="text-xs font-bold font-mono">{focusStats.weeklyFocusHours}h</div>
+                <div className="text-[8px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">Week</div>
+              </div>
+              <div className="bg-secondary/30 rounded-2xl p-2.5 border border-border/30">
+                <div className="text-xs font-bold font-mono">{focusStats.sessionCompletionRate}%</div>
+                <div className="text-[8px] text-muted-foreground uppercase font-bold mt-1 tracking-wider">Adherence</div>
+              </div>
+            </div>
+
+            {/* Timer modes selection selector */}
+            <div className="space-y-3">
+              <div className="flex rounded-xl bg-secondary/50 p-1 border border-border/35 text-[9px] font-semibold text-muted-foreground">
+                {[
+                  { id: "pomodoro", label: "Pomo 25m" },
+                  { id: "extended_focus", label: "Focus 50m" },
+                  { id: "deep_work", label: "Deep 90m" }
+                ].map((mode) => (
+                  <button
+                    key={mode.id}
+                    onClick={() => setFocusTimerMode(mode.id as any)}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-lg transition-all cursor-pointer",
+                      focusTimerMode === mode.id
+                        ? "bg-card text-foreground shadow-soft"
+                        : "hover:text-foreground"
+                    )}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => triggerFocusSession(focusTimerMode)}
+                className="w-full rounded-2xl py-3 bg-gradient-to-r from-violet-500 to-pink-500 text-white font-display text-xs font-bold uppercase tracking-wider shadow-float hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-violet-400/20"
+              >
+                <Brain className="h-4.5 w-4.5 animate-pulse" />
+                Start Focus Session
+              </button>
+            </div>
+          </div>
+
+          {/* Integrated Habits Widget Cockpit with Create Habit Modal form */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Repeat className="h-4 w-4 text-emerald-500" /> Habits Tracker
+              </h3>
+              <button
+                onClick={() => setQuickHabitOpen((v) => !v)}
+                className="text-[9px] font-bold text-muted-foreground hover:text-emerald-500 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Habit
+              </button>
+            </div>
+
+            {/* Quick add habit form */}
+            <AnimatePresence>
+              {quickHabitOpen && (
+                <motion.form
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  onSubmit={handleQuickHabitSubmit}
+                  className="mb-4 bg-secondary/25 border border-border/40 rounded-2xl p-3.5 space-y-2.5 overflow-hidden text-xs"
+                >
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Habit Name</span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Push Ups"
+                      value={quickHabitName}
+                      onChange={(e) => setQuickHabitName(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Color Theme</span>
+                    <select
+                      value={quickHabitColor}
+                      onChange={(e) => setQuickHabitColor(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-1.5 text-xs outline-none cursor-pointer"
+                    >
+                      <option value="mint">Mint (Green)</option>
+                      <option value="sky">Sky (Blue)</option>
+                      <option value="lavender">Lavender (Purple)</option>
+                      <option value="peach">Peach (Orange)</option>
+                    </select>
+                  </label>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setQuickHabitOpen(false)}
+                      className="rounded-xl border border-border bg-card px-2.5 py-1 text-[9px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!quickHabitName.trim()}
+                      className="rounded-xl bg-foreground text-background px-2.5 py-1 text-[9px] font-bold cursor-pointer"
+                    >
+                      Save Habit
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+
             {habits.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground italic">
-                No habits configured. Set up habits to track streaks.
-              </p>
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <p className="text-[10px] text-muted-foreground italic mb-3">
+                  No habits configured. Establish routine check-ins to build neural pathways!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setQuickHabitOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-all cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Establish Your First Habit
+                </button>
+              </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {habits.slice(0, 3).map((h: any) => {
                   const todayCompleted = h.days?.[6] === 1;
                   return (
@@ -561,8 +762,7 @@ function Dashboard() {
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold truncate">{h.name}</div>
                         <div className="text-[9px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Flame className="h-3 w-3 text-orange-500" /> {h.streak}d streak · {h.pct}
-                          % consistency
+                          <Flame className="h-3 w-3 text-orange-500" /> {h.streak}d streak · {h.pct}% consistency
                         </div>
                       </div>
                       <button
@@ -591,11 +791,11 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Goals Snapshot containing Next Milestones */}
+          {/* FEATURE 2 — GOAL HEALTH SCORE CARD */}
           <div className={cardClass}>
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-primary" /> Active Goals Snapshot
+                <Target className="h-4 w-4 text-primary animate-pulse" /> Goal Health Cockpit
               </h3>
               <Link
                 to="/app/goals"
@@ -607,35 +807,146 @@ function Dashboard() {
 
             <div className="space-y-4">
               {activeGoals.length === 0 ? (
-                <p className="text-[10px] text-muted-foreground italic">
+                <p className="text-[10px] text-muted-foreground italic text-center py-4">
                   No active goals set. Formulate your destination goals in Goals page.
                 </p>
               ) : (
-                activeGoals.slice(0, 3).map((g: any) => (
-                  <div key={g.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-foreground truncate max-w-[150px]">
-                        {g.title}
-                      </span>
-                      <span className="font-bold text-muted-foreground text-[10px] shrink-0">
-                        {g.progress}%
-                      </span>
+                activeGoals.slice(0, 3).map((g: any) => {
+                  const score = g.healthScore || 80;
+                  const status = g.healthStatus || "On Track";
+                  
+                  // Color codes
+                  let badgeColor = "bg-emerald-500/10 border-emerald-500/20 text-emerald-600";
+                  let circleStroke = "var(--mint)";
+                  
+                  if (status === "Excellent") {
+                    badgeColor = "bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400";
+                    circleStroke = "var(--mint)";
+                  } else if (status === "At Risk") {
+                    badgeColor = "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400";
+                    circleStroke = "var(--peach)";
+                  } else if (status === "Critical") {
+                    badgeColor = "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400";
+                    circleStroke = "var(--lavender)";
+                  }
+
+                  return (
+                    <div key={g.id} className="bg-secondary/15 border border-border/30 rounded-2xl p-3.5 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-xs font-bold truncate">{g.title}</h4>
+                          <p className="text-[8px] text-muted-foreground font-semibold mt-0.5 tracking-wide">
+                            TYPE: {g.type.toUpperCase()} · PROBABILITY: {g.completionProbability}%
+                          </p>
+                        </div>
+
+                        {/* Health Score Mini Ring */}
+                        <div className="relative h-11 w-11 shrink-0">
+                          <svg className="h-full w-full -rotate-90">
+                            <circle
+                              cx="22"
+                              cy="22"
+                              r="17"
+                              className="stroke-secondary fill-transparent"
+                              strokeWidth="3.5"
+                            />
+                            <circle
+                              cx="22"
+                              cy="22"
+                              r="17"
+                              className="transition-all duration-700 fill-transparent"
+                              strokeWidth="3.5"
+                              strokeDasharray={106.8}
+                              strokeDashoffset={106.8 - (106.8 * score) / 100}
+                              strokeLinecap="round"
+                              style={{ stroke: circleStroke }}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-[8px] font-extrabold font-mono leading-none">{score}</span>
+                            <span className="text-[6px] text-muted-foreground uppercase leading-none font-bold scale-90">Health</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar & Status Badge */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className={cn("rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider border", badgeColor)}>
+                            {status}
+                          </span>
+                          <span className="font-bold text-muted-foreground">{g.progress}% Complete</span>
+                        </div>
+                        
+                        <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] transition-all duration-500"
+                            style={{ width: `${g.progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {g.nextMilestone && (
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-1.5 bg-card border border-border/40 rounded-lg px-2 py-1 select-none">
+                          <Sparkles className="h-3 w-3 text-primary shrink-0 animate-pulse" />
+                          <span className="font-bold text-foreground/80 shrink-0">Next:</span>
+                          <span className="truncate">{g.nextMilestone}</span>
+                        </p>
+                      )}
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] transition-all duration-500"
-                        style={{ width: `${g.progress}%` }}
-                      />
-                    </div>
-                    {g.nextMilestone && (
-                      <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 bg-secondary/35 rounded-lg px-2 py-1 select-none">
-                        <Sparkles className="h-3 w-3 text-primary shrink-0 animate-pulse" />
-                        <span className="font-bold text-foreground/80 shrink-0">Next:</span>
-                        <span className="truncate">{g.nextMilestone}</span>
-                      </p>
-                    )}
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* FEATURE 3 — AI OPPORTUNITY DETECTOR CARD */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-violet-500 flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-violet-500 animate-pulse" /> Opportunity Detector
+              </h3>
+            </div>
+
+            <div className="space-y-2.5">
+              {opportunitySignals.length === 0 ? (
+                <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-3.5">
+                  <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                    <span className="font-bold block">Telemetry Clean</span>
+                    <span className="mt-0.5 block leading-normal">FlowPilot found zero warnings! Momentum is robust.</span>
                   </div>
-                ))
+                </div>
+              ) : (
+                opportunitySignals.slice(0, 3).map((sig: any) => {
+                  let badgeStyle = "bg-violet-500/5 border-violet-500/10 text-violet-600 dark:text-violet-400";
+                  let dotStyle = "bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.5)]";
+
+                  if (sig.level === "critical") {
+                    badgeStyle = "bg-red-500/5 border-red-500/10 text-red-600 dark:text-red-400";
+                    dotStyle = "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]";
+                  } else if (sig.level === "warning") {
+                    badgeStyle = "bg-amber-500/5 border-amber-500/10 text-amber-600 dark:text-amber-400";
+                    dotStyle = "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+                  }
+
+                  return (
+                    <div key={sig.id} className={cn("rounded-2xl border p-3 space-y-2 select-none", badgeStyle)}>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", dotStyle)} />
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider">{sig.category} · {sig.level}</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold leading-tight text-foreground/80">{sig.title}</h4>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">{sig.description}</p>
+                      </div>
+                      <div className="mt-1 bg-white/20 dark:bg-black/20 rounded-xl p-2 text-[9px] leading-relaxed text-foreground font-medium flex items-start gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse mt-0.5" />
+                        <span>{sig.actionableSuggestion}</span>
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

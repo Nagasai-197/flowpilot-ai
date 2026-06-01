@@ -111,7 +111,29 @@ function ProgressPage() {
     reviewsCount: 1, // assume reflection unlocked on loading dashboard reviews count
   };
 
-  // Static mock datasets for Recharts
+  // Focus Session Weekly Breakdown
+  const focusStats = copilotSummary?.focusStats || {
+    todayFocusHours: 0,
+    weeklyFocusHours: 0,
+    deepWorkStreak: 0,
+    sessionCompletionRate: 100,
+    weeklyBreakdown: [0, 0, 0, 0, 0, 0, 0],
+    deepWorkHours: 0,
+  };
+
+  const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weeklyFocusData = weekdays.map((day, idx) => ({
+    day,
+    hours: focusStats.weeklyBreakdown?.[idx] ?? 0,
+  }));
+
+  // AI Goals Health & Completion Probability mapping
+  const goalsHealthData = activeGoals.map((g: any) => ({
+    name: g.title.length > 15 ? g.title.substring(0, 15) + "..." : g.title,
+    health: g.healthScore ?? 0,
+    probability: g.completionProbability ?? 0,
+  }));
+
   const productivityHistory = [
     { day: "Mon", score: Math.round(lifeScore * 0.9) },
     { day: "Tue", score: Math.round(lifeScore * 0.95) },
@@ -205,7 +227,7 @@ function ProgressPage() {
       </motion.section>
 
       {/* Analytics Charts Grid */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Productivity Score Trend */}
         <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
           <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
@@ -256,12 +278,105 @@ function ProgressPage() {
           </div>
         </div>
 
+        {/* Weekly Focus Hours Breakdown */}
+        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Brain className="h-4.5 w-4.5 text-pink-500" /> Weekly Deep Work Hours
+            </h3>
+            <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-semibold text-pink-500 uppercase">
+              Focus Hours
+            </span>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={weeklyFocusData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="focusGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="rgb(236, 72, 153)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="rgb(236, 72, 153)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="day" stroke="var(--muted-foreground)" opacity={0.6} fontSize={10} />
+                <YAxis
+                  stroke="var(--muted-foreground)"
+                  opacity={0.6}
+                  fontSize={10}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--card)",
+                    borderColor: "var(--border)",
+                    borderRadius: "16px",
+                    boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="hours"
+                  stroke="rgb(236, 72, 153)"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#focusGrad)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* AI Goals Health & Completion Probability */}
+        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+          <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Target className="h-4.5 w-4.5 text-indigo-500" /> Goal Health & AI Probability
+            </h3>
+            <span className="text-[10px] font-semibold text-indigo-500 uppercase bg-indigo-500/10 px-2 py-0.5 rounded-full">
+              Predictive Telemetry
+            </span>
+          </div>
+          <div className="h-64 w-full">
+            {goalsHealthData.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground italic">
+                Create an AI Goal roadmap to activate predictive telemetry!
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={goalsHealthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis
+                    dataKey="name"
+                    stroke="var(--muted-foreground)"
+                    opacity={0.6}
+                    fontSize={10}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    stroke="var(--muted-foreground)"
+                    opacity={0.6}
+                    fontSize={10}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card)",
+                      borderColor: "var(--border)",
+                      borderRadius: "16px",
+                    }}
+                  />
+                  <Bar dataKey="health" fill="var(--primary)" name="Goal Health Score" radius={[6, 6, 0, 0]} barSize={16} />
+                  <Bar dataKey="probability" fill="rgb(99, 102, 241)" name="AI Success Probability" radius={[6, 6, 0, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
         {/* Planner Adherence comparative BarChart */}
         <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
           <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5">
-              <ClipboardList className="h-4.5 w-4.5 text-indigo-500" /> Planner & Execution
-              Adherence
+              <ClipboardList className="h-4.5 w-4.5 text-emerald-500" /> Planner & Execution Adherence
             </h3>
             <span className="text-[10px] font-semibold text-muted-foreground">
               Planned vs Actual Completion Rate

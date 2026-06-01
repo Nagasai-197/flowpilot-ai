@@ -5,6 +5,7 @@ import { getAIProvider } from "../providers/ai/index.js";
 import { logger } from "../utils/logger.js";
 import { TaskService } from "../services/task.service.js";
 import { HabitService } from "../services/habit.service.js";
+import { FocusService } from "../services/focus.service.js";
 
 export class CopilotController {
   /**
@@ -79,6 +80,18 @@ export class CopilotController {
       let goals: any[] = [];
       let milestonesData: any[] = [];
       let reviewsCount = 0;
+      let focusSessions: any[] = [];
+      let focusStats = {
+        todayFocusHours: 0,
+        weeklyFocusHours: 0,
+        monthlyFocusHours: 0,
+        deepWorkStreak: 0,
+        sessionCompletionRate: 100,
+        focusSessionsCount: 0,
+        deepWorkHours: 0,
+        weeklyBreakdown: [0, 0, 0, 0, 0, 0, 0],
+      };
+
       try {
         const { data: goalsData } = await supabase.from("goals").select("*").eq("user_id", userId);
         goals = goalsData || [];
@@ -104,8 +117,16 @@ export class CopilotController {
         if (!rErr) {
           reviewsCount = count || 0;
         }
+
+        // Fetch focus sessions
+        focusStats = await FocusService.getFocusStats(userId);
+        const { data: fsData } = await supabase
+          .from("focus_sessions")
+          .select("*")
+          .eq("user_id", userId);
+        focusSessions = fsData || [];
       } catch (err: any) {
-        logger.warn(`Goals, milestones, or reviews table not queried: ${err.message}`);
+        logger.warn(`Goals, milestones, reviews, or focus tables not fully queried: ${err.message}`);
       }
 
       // Query raw habit logs in the last 30 days for streak and consistency calculations
@@ -220,30 +241,122 @@ export class CopilotController {
         Math.round(((todayTaskRate + todayHabitRate) / 2) * 100),
       );
 
-      // 7. Calculations: AI Life Score
+      // 7. Calculations: Goal Health Scores (FEATURE 2)
+      const goalsWithHealth = activeGoals.map((g) => {
+        const goalMilestones = milestonesData.filter((m) => m.goal_id === g.id);
+        const completedMilestones = goalMilestones.filter((m) => m.completed).length;
+        const milestoneRate = goalMilestones.length > 0
+          ? completedMilestones / goalMilestones.length
+          : 0.5; // default if no milestones
+
+        // Find linked tasks: tag matches goal category or title case-insensitively
+        const linkedTasks = tasks.filter((t) => 
+          t.tag && 
+          (t.tag.toLowerCase() === g.category?.toLowerCase() || 
+           t.tag.toLowerCase() === g.title?.toLowerCase() ||
+           (t.description?.toLowerCase().includes(`[milestone:`) && t.description?.toLowerCase().includes(g.title?.toLowerCase())))
+        );
+        const completedLinkedTasks = linkedTasks.filter((t) => t.status === "done").length;
+        const taskRate = linkedTasks.length > 0
+          ? completedLinkedTasks / linkedTasks.length
+          : 1.0;
+
+        // Focus hours on this specific goal
+        const goalSessions = focusSessions.filter((fs) => fs.goal_id === g.id && fs.completed);
+        const focusMins = goalSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+        const focusHours = focusMins / 60;
+        const focusFactor = Math.min(1.0, focusHours / 5.0); // target 5 hours of focus per goal for full points
+
+        const habitFactor = habitConsistency / 100;
+        const plannerFactor = plannerAdherence / 100;
+
+        // Calculate Goal Health Score using weighted parameters
+        let healthVal = (milestoneRate * 35) + (taskRate * 25) + (focusFactor * 15) + (plannerFactor * 15) + (habitFactor * 10);
+        let healthScore = Math.min(100, Math.max(0, Math.round(healthVal * 100)));
+        
+        // Dynamic target date deadline slip penalty
+        let daysRemaining: number | null = null;
+        if (g.target_date) {
+          const targetDate = new Date(g.target_date);
+          daysRemaining = Math.ceil((targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+          const remainingMilestones = goalMilestones.filter((m) => !m.completed).length;
+          
+          if (remainingMilestones > 0 && daysRemaining < remainingMilestones * 2) {
+            const penalty = Math.min(30, Math.round((remainingMilestones * 2 - Math.max(0, daysRemaining)) * 2));
+            healthScore = Math.max(10, healthScore - penalty);
+          }
+        }
+
+        // Completion Probability estimation
+        let completionProbability = 100;
+        if (g.progress === 100) {
+          completionProbability = 100;
+        } else if (daysRemaining !== null) {
+          if (daysRemaining <= 0) {
+            completionProbability = 5;
+          } else {
+            // Milestone rate and health weighted by days remaining
+            const remainingRate = 1 - milestoneRate;
+            const velocityNeeded = remainingRate / Math.max(1, daysRemaining);
+            if (velocityNeeded > 0.05) { // Needs to complete more than 5% per day
+              completionProbability = Math.max(10, Math.round((daysRemaining / (remainingRate * 10 || 1)) * 10));
+            } else {
+              completionProbability = Math.min(95, Math.round(healthScore * 0.8 + daysRemaining * 0.5));
+            }
+          }
+        } else {
+          completionProbability = Math.min(95, Math.round(healthScore * 0.9));
+        }
+
+        let statusLabel = "On Track";
+        if (healthScore >= 80) statusLabel = "Excellent";
+        else if (healthScore >= 65) statusLabel = "On Track";
+        else if (healthScore >= 50) statusLabel = "At Risk";
+        else statusLabel = "Critical";
+
+        return {
+          id: g.id,
+          title: g.title,
+          progress: g.progress || 0,
+          targetDate: g.target_date || null,
+          category: g.category || "Personal",
+          type: g.category ? g.category.charAt(0).toUpperCase() + g.category.slice(1) : "Personal",
+          healthScore,
+          healthStatus: statusLabel,
+          completionProbability: Math.min(100, Math.max(5, completionProbability)),
+          focusHours: Math.round(focusHours * 10) / 10,
+          milestonesCount: goalMilestones.length,
+          completedMilestonesCount,
+        };
+      });
+
+      // 8. Calculations: AI Life Score
       const taskRatio =
         tasks.length > 0
           ? (tasks.filter((t) => t.status === "done").length / tasks.length) * 100
           : 100;
+      const focusAdherenceVal = focusStats.sessionCompletionRate || 100;
       const lifeScoreVal =
-        taskRatio * 0.4 + habitConsistency * 0.3 + goalProgress * 0.2 + plannerAdherence * 0.1;
+        taskRatio * 0.3 + habitConsistency * 0.2 + goalProgress * 0.2 + plannerAdherence * 0.15 + focusAdherenceVal * 0.15;
       const lifeScore = Math.min(100, Math.max(0, Math.round(lifeScoreVal)));
 
-      // 7c. Calculations: Dynamic XP & Level Gamification Engine
+      // 8c. Calculations: Dynamic XP & Level Gamification Engine
       const completedTasksCount = tasks.filter((t) => t.status === "done").length;
       const completedMilestonesCount = milestonesData.filter((m) => m.completed).length;
       const habitLogsCount = rawLogs?.length || 0;
+      const completedFocusSessionsCount = focusSessions.filter((s) => s.completed).length;
 
       const xp =
         completedTasksCount * 10 +
         habitLogsCount * 5 +
         completedMilestonesCount * 25 +
-        reviewsCount * 50;
+        reviewsCount * 50 +
+        completedFocusSessionsCount * 15;
       const level = Math.floor(1 + Math.sqrt(xp / 100));
       const nextLevelXpTarget = Math.pow(level, 2) * 100;
       const currentLevelXpBaseline = Math.pow(level - 1, 2) * 100;
 
-      // 7b. Calculations: Previous Week's AI Life Score (for dynamic trend)
+      // 8b. Calculations: Previous Week's AI Life Score (for dynamic trend)
       let lifeScoreTrend = "New Account";
       if (tasks.length > 0 || habits.length > 0) {
         // Calculate previous week's tasks ratio
@@ -291,10 +404,11 @@ export class CopilotController {
           prevLogs.length > 0 || prevCompletedTasks.length > 0 ? 50 : 100;
 
         const prevLifeScoreVal =
-          prevTaskRatio * 0.4 +
-          prevHabitConsistency * 0.3 +
+          prevTaskRatio * 0.3 +
+          prevHabitConsistency * 0.2 +
           prevGoalProgress * 0.2 +
-          prevPlannerAdherence * 0.1;
+          prevPlannerAdherence * 0.15 +
+          focusAdherenceVal * 0.15;
         const prevLifeScore = Math.min(100, Math.max(0, Math.round(prevLifeScoreVal)));
 
         const scoreDiff = lifeScore - prevLifeScore;
@@ -307,24 +421,105 @@ export class CopilotController {
         }
       }
 
-      // 8. Calculations: Weekly focus Hours
-      const { data: weeklyBlocks } = await supabase
-        .from("schedule_blocks")
-        .select("start_time, end_time")
-        .eq("user_id", userId)
-        .eq("block_type", "focus")
-        .gte("start_time", `${sevenDaysAgoStr}T00:00:00${offsetStr}`);
+      // 9. AI Opportunity Detector Engine (FEATURE 3)
+      const opportunitySignals: any[] = [];
 
-      let weeklyFocusMinutes = 0;
-      weeklyBlocks?.forEach((b) => {
-        if (b.start_time && b.end_time) {
-          const dur = (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / 60000;
-          weeklyFocusMinutes += Math.max(0, dur);
+      // 1. Scan active goals for ignored risks or opportunities
+      goalsWithHealth.forEach((gh) => {
+        if (gh.focusHours === 0 && gh.progress < 25) {
+          opportunitySignals.push({
+            id: `ignored_goal_${gh.id}`,
+            level: "critical",
+            category: "Goals",
+            title: `Goal Ignored: "${gh.title}"`,
+            description: `No focus sessions logged or linked tasks completed for "${gh.title}" in the last 14 days.`,
+            actionableSuggestion: `Launch Focus Mode for 25 minutes on a task tagged "${gh.category}" to break the inertia!`,
+            goalId: gh.id,
+          });
+        }
+
+        if (gh.healthStatus === "Critical" || gh.healthStatus === "At Risk") {
+          opportunitySignals.push({
+            id: `slippage_risk_${gh.id}`,
+            level: "warning",
+            category: "Goals",
+            title: `Roadmap Delay Warning: "${gh.title}"`,
+            description: `Progress velocity has slowed down. Remaining milestones require accelerated execution.`,
+            actionableSuggestion: `Break down the next pending milestone inside Tasks and assign 2 focus blocks this week.`,
+            goalId: gh.id,
+          });
+        }
+
+        if (gh.healthStatus === "Excellent" && gh.progress > 50) {
+          opportunitySignals.push({
+            id: `ahead_momentum_${gh.id}`,
+            level: "opportunity",
+            category: "Goals",
+            title: `Accelerated Progress: "${gh.title}"`,
+            description: `You are moving ahead of schedule with high goal velocity and consistent focus!`,
+            actionableSuggestion: `Leverage this momentum to double down and unlock the next milestone ahead of time.`,
+            goalId: gh.id,
+          });
         }
       });
-      const completedWeeklyHours = Math.round((weeklyFocusMinutes / 60) * 10) / 10;
 
-      // 9. Warnings detection
+      // 2. Habit consistency drops / wins
+      if (habitConsistency < 50) {
+        opportunitySignals.push({
+          id: "habit_consistency_drop",
+          level: "critical",
+          category: "Habits",
+          title: "Habit Consistency Dropping",
+          description: `Overall consistency has fallen to ${habitConsistency}%, introducing a risk of habit slip.`,
+          actionableSuggestion: "Create a micro-habit (e.g. 5-min review) and complete it first thing in tomorrow's plan.",
+        });
+      } else if (habitConsistency >= 85) {
+        opportunitySignals.push({
+          id: "habit_consistency_streak",
+          level: "opportunity",
+          category: "Habits",
+          title: "Habit Master Momentum",
+          description: `Excellent habit consistency of ${habitConsistency}%! You are building solid neural pathways.`,
+          actionableSuggestion: "Consider tracking a secondary habit or adding a milestone related to streak maintenance.",
+        });
+      }
+
+      // 3. Planner adherence drops / perfect alignment
+      if (plannerAdherence < 40) {
+        opportunitySignals.push({
+          id: "planner_adherence_warning",
+          level: "warning",
+          category: "Planner",
+          title: "Planner Slippage Risk",
+          description: `Schedule adherence is low (${plannerAdherence}%). You are planning blocks but drifting during execution.`,
+          actionableSuggestion: "Enable visual Deep Work focus blocks in the morning and reduce block duration to 25 minutes.",
+        });
+      } else if (plannerAdherence >= 80) {
+        opportunitySignals.push({
+          id: "planner_adherence_success",
+          level: "opportunity",
+          category: "Planner",
+          title: "Execution Alignment Strong",
+          description: `Your calendar planning matches your daily focus execution flawlessly at ${plannerAdherence}%!`,
+          actionableSuggestion: "Protect this deep state by blocking 15-minute scheduled recovery spaces between focus blocks.",
+        });
+      }
+
+      // 4. Focus session streak momentum
+      if (focusStats.deepWorkStreak >= 3) {
+        opportunitySignals.push({
+          id: "focus_streak_opportunity",
+          level: "opportunity",
+          category: "Focus",
+          title: `Focus Streak of ${focusStats.deepWorkStreak} Days!`,
+          description: `You have successfully balanced cognitive deep work blocks for consecutive days.`,
+          actionableSuggestion: "Add a custom focus sprint today to lock in your 'Deep Work Monk' digital achievement badge!",
+        });
+      }
+
+      const completedWeeklyHours = focusStats.weeklyFocusHours;
+
+      // 10. Warnings detection
       const overdueTasks = tasks.filter(
         (t) => t.status !== "done" && t.due_date && t.due_date.split("T")[0] < todayStr,
       );
@@ -332,7 +527,7 @@ export class CopilotController {
       const habitRisk = habitConsistency < 50;
       const plannerMissing = (schedule || []).length === 0;
 
-      // 10. AI Daily Briefing
+      // 11. AI Daily Briefing
       const unfinishedTasks = tasks
         .filter((t) => t.status !== "done")
         .sort((a, b) => {
@@ -356,7 +551,7 @@ export class CopilotController {
         nextBestAction = "Generate today's planner schedule to build structure";
       }
 
-      // 11. Recent Activity Feed (Interleaves Task, Habit, Goal, Planner activities)
+      // 12. Recent Activity Feed (Interleaves Task, Habit, Goal, Planner activities)
       const activities: any[] = [];
 
       tasks.forEach((t) => {
@@ -407,14 +602,27 @@ export class CopilotController {
         }
       });
 
-      const uniquePlannerDays = new Set(weeklyBlocks?.map((b) => b.start_time?.split("T")[0]));
+      const uniquePlannerDays = new Set(schedule?.map((b: any) => b.start_time?.split("T")[0]) || []);
       uniquePlannerDays.forEach((day) => {
+        if (!day) return;
         activities.push({
           type: "planner_generated",
           title: `AI Planner schedule optimized for ${day}`,
           timestamp: `${day}T08:00:00Z`,
           color: "peach",
         });
+      });
+
+      // Interleave completed focus mode sessions into activity feed
+      focusSessions.forEach((fs) => {
+        if (fs.completed) {
+          activities.push({
+            type: "focus_session_completed",
+            title: `Completed Focus Mode session: ${fs.duration_minutes}m (${fs.type.replace("_", " ")})`,
+            timestamp: fs.created_at,
+            color: "violet",
+          });
+        }
       });
 
       const recentActivities = activities
@@ -438,6 +646,7 @@ export class CopilotController {
             level,
             nextLevelXpTarget,
             currentLevelXpBaseline,
+            focusAdherence: focusAdherenceVal,
           },
           briefing: {
             todayFocus,
@@ -448,21 +657,9 @@ export class CopilotController {
               plannerMissing,
             },
           },
-          goals: activeGoals.slice(0, 5).map((g) => {
-            const goalMilestones = milestonesData.filter((m) => m.goal_id === g.id);
-            const nextPending = goalMilestones.find((m) => !m.completed);
-            return {
-              id: g.id,
-              title: g.title,
-              progress: g.progress || 0,
-              targetDate: g.target_date || null,
-              type: g.category
-                ? g.category.charAt(0).toUpperCase() + g.category.slice(1)
-                : "Personal",
-              milestones: goalMilestones,
-              nextMilestone: nextPending ? nextPending.title : null,
-            };
-          }),
+          goals: goalsWithHealth,
+          focusStats,
+          opportunitySignals,
           weeklyGoal: {
             completedHours: completedWeeklyHours,
             targetHours: 25,

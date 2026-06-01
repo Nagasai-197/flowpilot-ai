@@ -15,6 +15,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import copilotRoutes from "./routes/copilot.routes.js";
 import goalRoutes from "./routes/goal.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import focusRoutes from "./routes/focus.routes.js";
 
 const app = express();
 
@@ -101,6 +102,9 @@ app.use("/api/goals", goalRoutes);
 
 // Reflection Reviews Routes
 app.use("/api/reviews", reviewRoutes);
+
+// Focus Session Tracking Routes
+app.use("/api/focus", focusRoutes);
 
 import { supabase } from "./lib/supabase.js";
 import { config } from "./config/index.js";

@@ -5,8 +5,10 @@ import { AssistantIntentClassifier } from "../utils/intentClassifier.js";
 import { TaskService } from "./task.service.js";
 import { HabitService } from "./habit.service.js";
 import { AnalyticsService } from "./analytics.service.js";
+import { FocusService } from "./focus.service.js";
 import { AppError } from "../utils/errors.js";
 import { AssistantSessionMemory } from "../utils/sessionMemory.js";
+import { logger } from "../utils/logger.js";
 
 export class AssistantService {
   /**
@@ -49,14 +51,39 @@ export class AssistantService {
 
       const stats = await AnalyticsService.getDashboardStats(userId);
 
-      // Fetch goals (wrapped in try-catch in case goals table doesn't exist yet)
+      // Fetch goals, focus stats, and milestones
       let goals: any[] = [];
+      let focusStats = null;
+      let focusSessions: any[] = [];
+      let milestones: any[] = [];
+
+      try {
+        focusStats = await FocusService.getFocusStats(userId);
+        const { data: fsData } = await supabase
+          .from("focus_sessions")
+          .select("*")
+          .eq("user_id", userId);
+        focusSessions = fsData || [];
+      } catch (err: any) {
+        logger.warn(`Failed to fetch focus stats in AssistantService: ${err.message}`);
+      }
+
       try {
         const { data: goalsData } = await supabase.from("goals").select("*").eq("user_id", userId);
         goals = (goalsData || []).map((g) => ({
           ...g,
           type: g.category ? g.category.charAt(0).toUpperCase() + g.category.slice(1) : "Personal",
         }));
+
+        if (goals.length > 0) {
+          const goalIds = goals.map((g) => g.id);
+          const { data: mData } = await supabase
+            .from("goal_milestones")
+            .select("*")
+            .in("goal_id", goalIds)
+            .order("order_index", { ascending: true });
+          milestones = mData || [];
+        }
       } catch (err: any) {
         // ignore
       }
@@ -85,7 +112,10 @@ export class AssistantService {
         stats,
         { workingHoursStart, workingHoursEnd, timezone },
         todayStr,
-        goals, // ← goals are now first-class in the context
+        goals,
+        focusStats,
+        focusSessions,
+        milestones,
       );
 
       // Fetch, append user prompt and update planner summary in session memory

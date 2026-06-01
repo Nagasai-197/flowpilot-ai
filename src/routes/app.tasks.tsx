@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Loader2,
   Check,
+  Brain,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -1268,6 +1269,27 @@ function SortableTaskCard({
             title="AI Subtask Breakdown"
           >
             <Sparkles className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => {
+              window.dispatchEvent(
+                new CustomEvent("start-focus-session", {
+                  detail: {
+                    type: "pomodoro",
+                    taskTitle: t.title,
+                    goalId: t.goal_id || undefined,
+                    milestoneId: t.milestone_id || undefined,
+                  },
+                })
+              );
+              toast.info(`Launching focus session for task: "${t.title}"!`);
+            }}
+            className="text-pink-500 hover:bg-pink-500/10 p-0.5 rounded transition-all cursor-pointer"
+            title="Launch Focus Session"
+          >
+            <Brain className="h-3.5 w-3.5 animate-pulse text-pink-500" />
           </button>
           <button
             type="button"

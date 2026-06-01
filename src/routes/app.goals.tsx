@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Check,
   Trash,
+  Brain,
 } from "lucide-react";
 import { useState } from "react";
 import { useGoals, Goal } from "../hooks/useGoals";
@@ -945,6 +946,25 @@ function GoalCard({
                   {/* Milestone Actions */}
                   {editingMilestoneId !== milestone.id && (
                     <div className="opacity-0 group-hover/milestone:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0">
+                      <button
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("start-focus-session", {
+                              detail: {
+                                type: "pomodoro",
+                                taskTitle: `Milestone: ${milestone.title}`,
+                                goalId: goal.id,
+                                milestoneId: milestone.id,
+                              },
+                            })
+                          );
+                          toast.info(`Launching focus session for milestone: "${milestone.title}"!`);
+                        }}
+                        className="p-0.5 rounded text-pink-500 hover:text-pink-600 hover:bg-pink-500/10 cursor-pointer"
+                        title="Focus on this Milestone"
+                      >
+                        <Brain className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         onClick={() => handleMoveMilestone(idx, "up")}
                         disabled={idx === 0}

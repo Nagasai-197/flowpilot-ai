@@ -125,6 +125,27 @@ export class ReviewService {
       }
     });
 
+    let focusSessionsHours = 0;
+    let completedSessionsCount = 0;
+    try {
+      const { data: focusSessions } = await supabase
+        .from("focus_sessions")
+        .select("*")
+        .eq("user_id", userId)
+        .gte("created_at", periodStart)
+        .lte("created_at", periodEnd);
+      if (focusSessions && focusSessions.length > 0) {
+        const completedFs = focusSessions.filter((fs) => fs.completed);
+        completedSessionsCount = completedFs.length;
+        const focusMins = completedFs.reduce((sum, fs) => sum + (fs.duration_minutes || 0), 0);
+        focusSessionsHours = Math.round((focusMins / 60) * 10) / 10;
+      }
+    } catch (e: any) {
+      logger.warn(`focus_sessions query ignored: ${e.message}`);
+    }
+
+    const calculatedFocusHours = focusSessionsHours > 0 ? focusSessionsHours : Math.round((actualFocusMinutes / 60) * 10) / 10;
+
     const apiKey = config.GEMINI_API_KEY;
     if (!apiKey || apiKey === "placeholder-gemini-key") {
       // Fallback if Gemini key is missing
@@ -163,7 +184,8 @@ export class ReviewService {
         currentStreak: h.streak || 0,
       })),
       goals: activeGoals.map((g) => ({ title: g.title, progress: g.progress || 0 })),
-      focusHours: Math.round((actualFocusMinutes / 60) * 10) / 10,
+      focusHours: calculatedFocusHours,
+      completedFocusSessions: completedSessionsCount,
     };
 
     const promptText = `

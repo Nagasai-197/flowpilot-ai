@@ -69,9 +69,9 @@ export class ContextBuilder {
   }
 
   /**
-   * Compresses goals list into a single contextual string for the AI
+   * Compresses goals list into a single contextual string for the AI, incorporating health stats
    */
-  static summarizeGoals(goals: any[]): string {
+  static summarizeGoals(goals: any[], milestones: any[] = [], focusSessions: any[] = [], tasks: any[] = []): string {
     if (!goals || goals.length === 0) return "No goals set yet.";
 
     const activeGoals = goals.filter((g) => g.status === "active");
@@ -79,9 +79,39 @@ export class ContextBuilder {
 
     const summaries = activeGoals
       .slice(0, 5)
-      .map((g) => `'${g.title}' [${g.type}] – progress: ${g.progress ?? 0}%`);
+      .map((g) => {
+        const goalMilestones = (milestones || []).filter((m) => m.goal_id === g.id);
+        const completedMilestones = goalMilestones.filter((m) => m.completed).length;
+        const milestoneRate = goalMilestones.length > 0 ? completedMilestones / goalMilestones.length : 0.5;
+
+        const goalSessions = (focusSessions || []).filter((fs) => fs.goal_id === g.id && fs.completed);
+        const focusMins = goalSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+        const focusHours = Math.round((focusMins / 60) * 10) / 10;
+
+        const linkedTasks = (tasks || []).filter((t) => 
+          t.tag && 
+          (t.tag.toLowerCase() === g.category?.toLowerCase() || 
+           t.tag.toLowerCase() === g.title?.toLowerCase())
+        );
+        const completedLinkedTasks = linkedTasks.filter((t) => t.status === "done").length;
+        const taskRate = linkedTasks.length > 0 ? completedLinkedTasks / linkedTasks.length : 1.0;
+        const focusFactor = Math.min(1.0, focusHours / 5.0);
+
+        const healthScore = Math.min(100, Math.max(0, Math.round((milestoneRate * 35) + (taskRate * 25) + (focusFactor * 15) + 30)));
+        const healthLabel = healthScore >= 80 ? "Excellent" : healthScore >= 65 ? "On Track" : healthScore >= 50 ? "At Risk" : "Critical";
+
+        return `'${g.title}' [${g.type}] – progress: ${g.progress ?? 0}%, Health: ${healthScore}/100 (${healthLabel}), Focus Hours: ${focusHours}h, Milestones: ${completedMilestones}/${goalMilestones.length} completed`;
+      });
 
     return `${goals.length} goals total (${activeGoals.length} active, ${completedGoals.length} completed). Active goals: ${summaries.join("; ")}.`;
+  }
+
+  /**
+   * Compresses focus session statistics into a single string summary
+   */
+  static summarizeFocus(focusStats: any): string {
+    if (!focusStats) return "No focus sessions logged yet.";
+    return `Today's Focus: ${focusStats.todayFocusHours}h, Weekly Focus: ${focusStats.weeklyFocusHours}h (Target: 25h), Deep Work Hours: ${focusStats.deepWorkHours}h, Deep Work Streak: ${focusStats.deepWorkStreak} days, Completed Sessions: ${focusStats.focusSessionsCount}, Session Completion Rate: ${focusStats.sessionCompletionRate}%.`;
   }
 
   /**
@@ -95,13 +125,17 @@ export class ContextBuilder {
     profile: { workingHoursStart: string; workingHoursEnd: string; timezone: string },
     dateStr: string,
     goals: any[] = [],
+    focusStats: any = null,
+    focusSessions: any[] = [],
+    milestones: any[] = [],
   ) {
     return {
       tasksSummary: this.summarizeTasks(tasks),
       habitsSummary: this.summarizeHabits(habits),
       scheduleSummary: this.summarizeSchedule(blocks, dateStr),
       analyticsSummary: this.summarizeAnalytics(stats),
-      goalsSummary: this.summarizeGoals(goals),
+      goalsSummary: this.summarizeGoals(goals, milestones, focusSessions, tasks),
+      focusSummary: this.summarizeFocus(focusStats),
       workingHours: `${profile.workingHoursStart}-${profile.workingHoursEnd} (Timezone: ${profile.timezone})`,
     };
   }
