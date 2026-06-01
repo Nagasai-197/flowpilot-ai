@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit from "express-rate-limit";
 
 /**
  * Reusable Rate Limiter Factory.
@@ -15,7 +15,7 @@ export function createLimiter(limit: number, windowMs: number, message: string) 
     standardHeaders: true, // Return rate limit info in standard RateLimit-* headers
     legacyHeaders: false, // Disable X-RateLimit-* legacy headers
     message: {
-      status: 'error',
+      status: "error",
       message,
     },
     // Allows proper operation behind reverse proxies like Vercel & Render
@@ -31,7 +31,7 @@ export function rateLimitMiddleware(limit: number, windowMs: number) {
   return createLimiter(
     limit,
     windowMs,
-    'Too many requests to FlowPilot AI. Please wait a moment and try again.'
+    "Too many requests to FlowPilot AI. Please wait a moment and try again.",
   );
 }
 
@@ -42,17 +42,17 @@ export { rateLimitMiddleware as rateLimit };
 export const globalLimiter = createLimiter(
   100,
   60 * 1000, // 1 minute
-  'Too many requests. Please slow down.'
+  "Too many requests. Please slow down.",
 );
 
 export const authLimiter = createLimiter(
   10,
   60 * 1000, // 1 minute
-  'Too many authentication attempts. Please try again in a minute.'
+  "Too many authentication attempts. Please try again in a minute.",
 );
 
 export const aiLimiter = createLimiter(
   5,
   60 * 1000, // 1 minute
-  'Too many AI requests. Please wait a moment and try again.'
+  "Too many AI requests. Please wait a moment and try again.",
 );

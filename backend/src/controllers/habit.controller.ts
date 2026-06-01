@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
-import { HabitService } from '../services/habit.service.js';
-import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { HabitService } from "../services/habit.service.js";
+import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
 
 export class HabitController {
   private static validateDate(dateStr?: string): void {
     if (!dateStr) {
-      throw new BadRequestError('Date parameter is required');
+      throw new BadRequestError("Date parameter is required");
     }
     const regex = /^\d{4}-\d{2}-\d{2}$/;
     if (!regex.test(dateStr)) {
@@ -13,7 +13,7 @@ export class HabitController {
     }
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) {
-      throw new BadRequestError('Invalid calendar date value');
+      throw new BadRequestError("Invalid calendar date value");
     }
   }
 
@@ -30,7 +30,7 @@ export class HabitController {
       const localDate = req.query.localDate as string | undefined;
       const habits = await HabitService.getHabitsForUser(userId, localDate);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         results: habits.length,
         data: {
           habits,
@@ -53,13 +53,13 @@ export class HabitController {
     const { name, color } = req.body;
 
     if (!name) {
-      return next(new BadRequestError('Habit name is required'));
+      return next(new BadRequestError("Habit name is required"));
     }
 
     try {
       const habit = await HabitService.createHabitForUser(userId, { name, color });
       res.status(201).json({
-        status: 'success',
+        status: "success",
         data: {
           habit,
         },
@@ -85,7 +85,7 @@ export class HabitController {
     try {
       const habit = await HabitService.updateHabitForUser(id, userId, { name, color });
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: { habit },
       });
     } catch (err) {
@@ -107,8 +107,8 @@ export class HabitController {
     try {
       await HabitService.deleteHabitForUser(id, userId);
       res.status(200).json({
-        status: 'success',
-        message: 'Habit deleted successfully',
+        status: "success",
+        message: "Habit deleted successfully",
       });
     } catch (err) {
       next(err);
@@ -135,7 +135,7 @@ export class HabitController {
       const log = await HabitService.toggleHabitLogForUser(id, userId, date, isCompleted);
 
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           log,
         },

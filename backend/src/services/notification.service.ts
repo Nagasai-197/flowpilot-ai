@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase.js';
-import { NotFoundError, AppError } from '../utils/errors.js';
+import { supabase } from "../lib/supabase.js";
+import { NotFoundError, AppError } from "../utils/errors.js";
 
 export class NotificationService {
   /**
@@ -7,10 +7,10 @@ export class NotificationService {
    */
   static async getNotificationsForUser(userId: string) {
     const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .from("notifications")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
 
     if (error) {
       throw new AppError(`Failed to fetch notifications: ${error.message}`, 500);
@@ -24,10 +24,10 @@ export class NotificationService {
    */
   static async getUnreadCountForUser(userId: string): Promise<number> {
     const { count, error } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_read", false);
 
     if (error) {
       throw new AppError(`Failed to fetch unread notification count: ${error.message}`, 500);
@@ -41,16 +41,16 @@ export class NotificationService {
    */
   static async markAsReadForUser(notificationId: string, userId: string) {
     const { data, error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .update({ is_read: true })
-      .eq('id', notificationId)
-      .eq('user_id', userId)
+      .eq("id", notificationId)
+      .eq("user_id", userId)
       .select()
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        throw new NotFoundError('Notification not found');
+      if (error.code === "PGRST116") {
+        throw new NotFoundError("Notification not found");
       }
       throw new AppError(`Failed to update notification: ${error.message}`, 500);
     }
@@ -63,10 +63,10 @@ export class NotificationService {
    */
   static async deleteNotificationForUser(notificationId: string, userId: string): Promise<void> {
     const { error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .delete()
-      .eq('id', notificationId)
-      .eq('user_id', userId);
+      .eq("id", notificationId)
+      .eq("user_id", userId);
 
     if (error) {
       throw new AppError(`Failed to delete notification: ${error.message}`, 400);
@@ -77,10 +77,7 @@ export class NotificationService {
    * Clears/deletes all notifications associated with the user
    */
   static async clearAllForUser(userId: string): Promise<void> {
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .eq('user_id', userId);
+    const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
 
     if (error) {
       throw new AppError(`Failed to clear notifications: ${error.message}`, 400);
@@ -95,10 +92,10 @@ export class NotificationService {
     type: string,
     title: string,
     description: string,
-    priority: 'low' | 'medium' | 'high' | 'critical' = 'medium'
+    priority: "low" | "medium" | "high" | "critical" = "medium",
   ) {
     const { data, error } = await supabase
-      .from('notifications')
+      .from("notifications")
       .insert({
         user_id: userId,
         type,

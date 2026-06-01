@@ -10,11 +10,23 @@ export const Route = createFileRoute("/app/settings")({
   component: Settings,
 });
 
-const tabs = ["Profile", "Notifications", "AI personalization", "Integrations", "Security"] as const;
+const tabs = [
+  "Profile",
+  "Notifications",
+  "AI personalization",
+  "Integrations",
+  "Security",
+] as const;
 
-function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange?: (val: boolean) => void }) {
+function Toggle({
+  defaultOn = false,
+  onChange,
+}: {
+  defaultOn?: boolean;
+  onChange?: (val: boolean) => void;
+}) {
   const [on, setOn] = useState(defaultOn);
-  
+
   const handleToggle = () => {
     const nextOn = !on;
     setOn(nextOn);
@@ -22,9 +34,19 @@ function Toggle({ defaultOn = false, onChange }: { defaultOn?: boolean; onChange
   };
 
   return (
-    <button onClick={handleToggle}
-      className={cn("relative h-6 w-11 rounded-full transition-colors cursor-pointer border-transparent", on ? "bg-primary" : "bg-secondary")}>
-      <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all", on ? "left-[22px]" : "left-0.5")} />
+    <button
+      onClick={handleToggle}
+      className={cn(
+        "relative h-6 w-11 rounded-full transition-colors cursor-pointer border-transparent",
+        on ? "bg-primary" : "bg-secondary",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+          on ? "left-[22px]" : "left-0.5",
+        )}
+      />
     </button>
   );
 }
@@ -58,29 +80,35 @@ function Settings() {
           .single();
 
         if (error) throw error;
-        
+
         if (data) {
           setFullName(data.full_name || user?.user_metadata?.full_name || "");
           setTimezone(data.timezone || "UTC");
           setWorkingHoursStart(data.working_hours_start || "09:00:00");
           setWorkingHoursEnd(data.working_hours_end || "17:00:00");
           setPreferredDeepWorkDuration(
-            data.preferred_deep_work_duration || 
-            (localStorage.getItem("pref_deep_work") ? parseInt(localStorage.getItem("pref_deep_work")!) : 90)
+            data.preferred_deep_work_duration ||
+              (localStorage.getItem("pref_deep_work")
+                ? parseInt(localStorage.getItem("pref_deep_work")!)
+                : 90),
           );
           setBreakDuration(
-            data.break_duration || 
-            (localStorage.getItem("pref_break") ? parseInt(localStorage.getItem("pref_break")!) : 15)
+            data.break_duration ||
+              (localStorage.getItem("pref_break")
+                ? parseInt(localStorage.getItem("pref_break")!)
+                : 15),
           );
         }
       } catch (err: any) {
         console.error("Failed to fetch settings profile: ", err.message);
         // Load from localStorage if supabase fails
         setPreferredDeepWorkDuration(
-          localStorage.getItem("pref_deep_work") ? parseInt(localStorage.getItem("pref_deep_work")!) : 90
+          localStorage.getItem("pref_deep_work")
+            ? parseInt(localStorage.getItem("pref_deep_work")!)
+            : 90,
         );
         setBreakDuration(
-          localStorage.getItem("pref_break") ? parseInt(localStorage.getItem("pref_break")!) : 15
+          localStorage.getItem("pref_break") ? parseInt(localStorage.getItem("pref_break")!) : 15,
         );
       } finally {
         const savedTheme = localStorage.getItem("theme") || "system";
@@ -111,7 +139,9 @@ function Settings() {
     } else if (nextTheme === "light") {
       root.classList.add("light");
     } else {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
       root.classList.add(systemTheme);
     }
     // Broadcast to Topbar toggle button
@@ -149,7 +179,7 @@ function Settings() {
             .from("profiles")
             .update(baseUpdates)
             .eq("id", user!.id);
-          
+
           if (fallbackError) throw fallbackError;
         }
       } catch (dbErr: any) {
@@ -158,7 +188,7 @@ function Settings() {
           .from("profiles")
           .update(baseUpdates)
           .eq("id", user!.id);
-        
+
         if (fallbackError) throw fallbackError;
       }
 
@@ -168,7 +198,7 @@ function Settings() {
 
       // Update user auth metadata as well
       await supabase.auth.updateUser({
-        data: { full_name: fullName }
+        data: { full_name: fullName },
       });
 
       toast.success("Profile and AI planner settings updated successfully!");
@@ -196,7 +226,9 @@ function Settings() {
     );
   }
 
-  const initialLetter = fullName ? fullName.charAt(0).toUpperCase() : (user?.email?.charAt(0).toUpperCase() || "M");
+  const initialLetter = fullName
+    ? fullName.charAt(0).toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() || "M";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -205,7 +237,7 @@ function Settings() {
           <h1 className="font-display text-3xl">Settings</h1>
           <p className="text-sm text-muted-foreground">Tune FlowPilot to feel uniquely yours.</p>
         </div>
-        <button 
+        <button
           onClick={handleLogout}
           className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 hover:bg-red-500/20 px-4 py-2 text-xs font-semibold text-red-500 transition-colors cursor-pointer border border-transparent"
         >
@@ -215,9 +247,16 @@ function Settings() {
 
       <div className="flex flex-wrap gap-1 rounded-2xl border border-border/60 bg-card p-1.5 shadow-soft">
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={cn("rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-transparent",
-              tab === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-transparent",
+              tab === t
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
             {t}
           </button>
         ))}
@@ -232,17 +271,26 @@ function Settings() {
               </div>
               <div>
                 <div className="text-base font-medium">{fullName || "FlowPilot user"}</div>
-                <div className="text-xs text-muted-foreground">{user?.email} · Premium workspace</div>
+                <div className="text-xs text-muted-foreground">
+                  {user?.email} · Premium workspace
+                </div>
               </div>
             </div>
           </div>
 
-          <form onSubmit={handleSaveProfile} className="rounded-3xl border border-border/60 bg-card shadow-soft p-5 space-y-4">
-            <div className="border-b border-border/60 pb-3 text-sm font-medium">Personal details</div>
-            
+          <form
+            onSubmit={handleSaveProfile}
+            className="rounded-3xl border border-border/60 bg-card shadow-soft p-5 space-y-4"
+          >
+            <div className="border-b border-border/60 pb-3 text-sm font-medium">
+              Personal details
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Full Name</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Full Name
+                </span>
                 <input
                   type="text"
                   required
@@ -253,7 +301,9 @@ function Settings() {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Timezone</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Timezone
+                </span>
                 <select
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
@@ -271,7 +321,9 @@ function Settings() {
 
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Working Hours Start</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Working Hours Start
+                </span>
                 <input
                   type="text"
                   required
@@ -282,7 +334,9 @@ function Settings() {
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Working Hours End</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Working Hours End
+                </span>
                 <input
                   type="text"
                   required
@@ -296,7 +350,9 @@ function Settings() {
 
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Preferred Deep Work Duration</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Preferred Deep Work Duration
+                </span>
                 <select
                   value={preferredDeepWorkDuration}
                   onChange={(e) => setPreferredDeepWorkDuration(parseInt(e.target.value))}
@@ -310,7 +366,9 @@ function Settings() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Break Duration</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Break Duration
+                </span>
                 <select
                   value={breakDuration}
                   onChange={(e) => setBreakDuration(parseInt(e.target.value))}
@@ -326,9 +384,13 @@ function Settings() {
             </div>
 
             <div className="border-t border-border/60 pt-4 mt-4 space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appearance Theme</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Appearance Theme
+              </div>
               <label className="block max-w-sm">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Select Application Theme</span>
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Select Application Theme
+                </span>
                 <select
                   value={theme}
                   onChange={(e) => handleThemeChange(e.target.value)}
@@ -356,43 +418,135 @@ function Settings() {
       )}
 
       {tab === "Notifications" && (
-        <ToggleCard items={[
-          ["Daily plan summary", "Every morning at 8:00", true],
-          ["Smart focus reminders", "Pings before deep work blocks", true],
-          ["Habit nudges", "Gentle prompts to stay consistent", false],
-          ["Weekly review", "Sundays at 7pm", true],
-        ]} />
+        <ToggleCard
+          items={[
+            ["Daily plan summary", "Every morning at 8:00", true],
+            ["Smart focus reminders", "Pings before deep work blocks", true],
+            ["Habit nudges", "Gentle prompts to stay consistent", false],
+            ["Weekly review", "Sundays at 7pm", true],
+          ]}
+        />
       )}
 
       {tab === "AI personalization" && (
-        <ToggleCard items={[
-          ["Adaptive scheduling", "AI re-balances your day in real time", true],
-          ["Learn from completions", "Improves estimates and priority", true],
-          ["Energy-based planning", "Schedule deep work in peak hours", true],
-          ["Auto-snooze low-energy days", "Reduces load when you're tired", false],
-        ]} />
+        <ToggleCard
+          items={[
+            ["Adaptive scheduling", "AI re-balances your day in real time", true],
+            ["Learn from completions", "Improves estimates and priority", true],
+            ["Energy-based planning", "Schedule deep work in peak hours", true],
+            ["Auto-snooze low-energy days", "Reduces load when you're tired", false],
+          ]}
+        />
       )}
 
       {tab === "Integrations" && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {["Google Calendar", "Notion", "GitHub", "Linear", "Slack", "Spotify"].map((p) => (
-            <div key={p} className="flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4 shadow-soft">
-              <div>
-                <div className="text-sm font-medium">{p}</div>
-                <div className="text-xs text-muted-foreground">Not connected</div>
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          {/* Active integrations with live mock states */}
+          <div className="glass rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 shadow-soft hover:shadow-float transition-all duration-300 flex flex-col justify-between h-40 text-left">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  📅 Google Calendar
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                </div>
+                <p className="text-xs text-muted-foreground">Synchronized 2 focus blocks today</p>
               </div>
-              <button className="rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background hover:opacity-90 cursor-pointer">Connect</button>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                Connected
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/30 pt-3">
+              <span className="text-[10px] text-muted-foreground font-mono">Last sync: 2m ago</span>
+              <button
+                onClick={() => toast.success("Google Calendar re-synchronized successfully!")}
+                className="rounded-full bg-foreground px-3.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 cursor-pointer"
+              >
+                Sync Now
+              </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-3xl border border-indigo-500/20 bg-indigo-500/5 p-5 shadow-soft hover:shadow-float transition-all duration-300 flex flex-col justify-between h-40 text-left">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  📝 Notion Workspace
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Database loaded: 4 Active Goals mapped
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                Connected
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/30 pt-3">
+              <span className="text-[10px] text-muted-foreground font-mono">
+                Last sync: 15m ago
+              </span>
+              <button
+                onClick={() => toast.success("Notion database sync refreshed!")}
+                className="rounded-full bg-foreground px-3.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 cursor-pointer"
+              >
+                Refresh DB
+              </button>
+            </div>
+          </div>
+
+          <div className="glass rounded-3xl border border-amber-500/20 bg-amber-500/5 p-5 shadow-soft hover:shadow-float transition-all duration-300 flex flex-col justify-between h-40 text-left">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  💻 GitHub Contributions
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                </div>
+                <p className="text-xs text-muted-foreground">Streaks logged: 12 Commits read</p>
+              </div>
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                Connected
+              </span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border/30 pt-3">
+              <span className="text-[10px] text-muted-foreground font-mono">Last sync: 1h ago</span>
+              <button
+                onClick={() => toast.success("GitHub commit history parsed!")}
+                className="rounded-full bg-foreground px-3.5 py-1.5 text-xs font-semibold text-background hover:opacity-90 cursor-pointer"
+              >
+                Configure
+              </button>
+            </div>
+          </div>
+
+          {/* Upcoming Beta Integrations */}
+          {["Linear Ticket Sync", "Slack Flow Nudges", "Spotify Focus Session"].map((p) => (
+            <div
+              key={p}
+              className="flex items-center justify-between rounded-3xl border border-border/60 bg-card/40 backdrop-blur-md p-5 shadow-soft opacity-60 text-left"
+            >
+              <div>
+                <div className="text-sm font-medium text-foreground">{p}</div>
+                <div className="text-xs text-muted-foreground">Beta coming soon</div>
+              </div>
+              <button
+                onClick={() => toast.success(`Access requested for ${p} Beta!`)}
+                className="rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold hover:bg-secondary cursor-pointer"
+              >
+                Request Access
+              </button>
             </div>
           ))}
         </div>
       )}
 
       {tab === "Security" && (
-        <ToggleCard items={[
-          ["Two-factor authentication", "Add an extra layer of protection", true],
-          ["Magic-link sign in", "Passwordless login by email", false],
-          ["Session expiry", "Sign out after 14 days of inactivity", true],
-        ]} />
+        <ToggleCard
+          items={[
+            ["Two-factor authentication", "Add an extra layer of protection", true],
+            ["Magic-link sign in", "Passwordless login by email", false],
+            ["Session expiry", "Sign out after 14 days of inactivity", true],
+          ]}
+        />
       )}
     </div>
   );

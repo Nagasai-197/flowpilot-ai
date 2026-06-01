@@ -1,4 +1,4 @@
-import { config } from '../config/index.js';
+import { config } from "../config/index.js";
 
 async function run() {
   const url = config.SUPABASE_URL;
@@ -7,11 +7,11 @@ async function run() {
   try {
     const response = await fetch(url, {
       headers: {
-        'apikey': apiKey,
-        'Authorization': `Bearer ${apiKey}`
-      }
+        apikey: apiKey,
+        Authorization: `Bearer ${apiKey}`,
+      },
     });
-    const schema = await response.json() as any;
+    const schema = (await response.json()) as any;
     console.log("=== Available DB Tables ===");
     console.log(Object.keys(schema.definitions || {}));
   } catch (err) {

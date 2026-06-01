@@ -1,16 +1,11 @@
-import { supabase } from '../lib/supabase.js';
-import { BadRequestError, UnauthorizedError, AppError } from '../utils/errors.js';
+import { supabase } from "../lib/supabase.js";
+import { BadRequestError, UnauthorizedError, AppError } from "../utils/errors.js";
 
 export class AuthService {
   /**
    * Registers a new user account with Supabase Auth
    */
-  static async signUpUser(
-    email: string,
-    password: string,
-    fullName: string,
-    timezone = 'UTC'
-  ) {
+  static async signUpUser(email: string, password: string, fullName: string, timezone = "UTC") {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -29,25 +24,23 @@ export class AuthService {
     // Defensive Sync: Ensure a profile is created matching the new user
     if (data.user) {
       try {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            full_name: fullName,
-            timezone,
-            working_hours_start: '09:00:00',
-            working_hours_end: '17:00:00',
-          });
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          full_name: fullName,
+          timezone,
+          working_hours_start: "09:00:00",
+          working_hours_end: "17:00:00",
+        });
 
         if (profileError) {
           // If insert fails due to pre-existing triggers, update instead
           await supabase
-            .from('profiles')
+            .from("profiles")
             .update({
               full_name: fullName,
               timezone,
             })
-            .eq('id', data.user.id);
+            .eq("id", data.user.id);
         }
       } catch (err) {
         // Safe logging fallback to ensure user registration is never blocked
@@ -73,35 +66,30 @@ export class AuthService {
     // Defensive Sync: Ensure profiles table has correct full_name on successful login
     if (data.user) {
       try {
-        const fullName = data.user.user_metadata?.full_name || '';
+        const fullName = data.user.user_metadata?.full_name || "";
         const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
           .maybeSingle();
 
         if (!existingProfile) {
-          await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              full_name: fullName,
-              timezone: data.user.user_metadata?.timezone || 'UTC',
-              working_hours_start: '09:00:00',
-              working_hours_end: '17:00:00',
-            });
+          await supabase.from("profiles").insert({
+            id: data.user.id,
+            full_name: fullName,
+            timezone: data.user.user_metadata?.timezone || "UTC",
+            working_hours_start: "09:00:00",
+            working_hours_end: "17:00:00",
+          });
         } else if (fullName) {
           const { data: detailedProfile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', data.user.id)
+            .from("profiles")
+            .select("full_name")
+            .eq("id", data.user.id)
             .single();
 
           if (!detailedProfile?.full_name) {
-            await supabase
-              .from('profiles')
-              .update({ full_name: fullName })
-              .eq('id', data.user.id);
+            await supabase.from("profiles").update({ full_name: fullName }).eq("id", data.user.id);
           }
         }
       } catch (err) {

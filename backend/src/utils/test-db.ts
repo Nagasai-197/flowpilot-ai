@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase } from "../lib/supabase.js";
 
 async function run() {
   console.log("Testing connection to 'goals' table...");
   try {
-    const { data, error } = await supabase.from('goals').select('*').limit(5);
+    const { data, error } = await supabase.from("goals").select("*").limit(5);
     if (error) {
       console.error("❌ Error querying goals table:", error);
     } else {

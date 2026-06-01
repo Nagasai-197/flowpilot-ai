@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase.js';
-import { NotFoundError, AppError } from '../utils/errors.js';
+import { supabase } from "../lib/supabase.js";
+import { NotFoundError, AppError } from "../utils/errors.js";
 
 export class DbService {
   /**
@@ -8,7 +8,7 @@ export class DbService {
   static async findMany<T>(
     table: string,
     query: Record<string, any> = {},
-    select = '*'
+    select = "*",
   ): Promise<T[]> {
     let builder = supabase.from(table).select(select);
 
@@ -29,14 +29,10 @@ export class DbService {
    * Fetch a single record by ID
    */
   static async findById<T>(table: string, id: string): Promise<T> {
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq('id', id)
-      .single();
+    const { data, error } = await supabase.from(table).select("*").eq("id", id).single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         throw new NotFoundError(`Record with ID ${id} not found in ${table}`);
       }
       throw new AppError(`DB FindById Error: ${error.message}`, 500);
@@ -49,11 +45,7 @@ export class DbService {
    * Create a new record
    */
   static async create<T>(table: string, payload: Record<string, any>): Promise<T> {
-    const { data, error } = await supabase
-      .from(table)
-      .insert(payload)
-      .select()
-      .single();
+    const { data, error } = await supabase.from(table).insert(payload).select().single();
 
     if (error) {
       throw new AppError(`DB Insertion Error: ${error.message}`, 400);
@@ -65,15 +57,11 @@ export class DbService {
   /**
    * Update a record by ID
    */
-  static async update<T>(
-    table: string,
-    id: string,
-    payload: Record<string, any>
-  ): Promise<T> {
+  static async update<T>(table: string, id: string, payload: Record<string, any>): Promise<T> {
     const { data, error } = await supabase
       .from(table)
       .update(payload)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -88,7 +76,7 @@ export class DbService {
    * Delete a record by ID
    */
   static async delete(table: string, id: string): Promise<void> {
-    const { error } = await supabase.from(table).delete().eq('id', id);
+    const { error } = await supabase.from(table).delete().eq("id", id);
 
     if (error) {
       throw new AppError(`DB Deletion Error: ${error.message}`, 400);

@@ -1,24 +1,42 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Sparkles, CheckCircle2, Flame, TrendingUp, ArrowUpRight,
-  CalendarDays, Zap, Loader2, Award, AlertTriangle, ShieldAlert,
-  Brain, Coffee, Target, Activity, Calendar, ClipboardList, Repeat
+  Sparkles,
+  CheckCircle2,
+  Flame,
+  TrendingUp,
+  ArrowUpRight,
+  CalendarDays,
+  Zap,
+  Loader2,
+  Award,
+  AlertTriangle,
+  ShieldAlert,
+  Brain,
+  Coffee,
+  Target,
+  Activity,
+  Calendar,
+  ClipboardList,
+  Repeat,
+  Plus,
 } from "lucide-react";
-
 import { useAuth } from "../hooks/useAuth";
 import { usePlanner } from "../hooks/usePlanner";
 import { useHabits } from "../hooks/useHabits";
+import { useGoals } from "../hooks/useGoals";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import { cn } from "../lib/utils";
+import { useState } from "react";
 
 export const Route = createFileRoute("/app/dashboard")({
   component: Dashboard,
 });
 
-const cardClass = "rounded-3xl border border-border/60 bg-card shadow-soft p-6 relative overflow-hidden transition-all duration-300 hover:shadow-float";
+const cardClass =
+  "rounded-3xl border border-border/60 bg-card shadow-soft p-6 relative overflow-hidden transition-all duration-300 hover:shadow-float";
 
 const TYPE_ICONS = {
   focus: Brain,
@@ -33,6 +51,11 @@ function Dashboard() {
   const queryClient = useQueryClient();
   const { generatePlan, isGenerating } = usePlanner();
   const { habits, toggleHabit } = useHabits();
+  const { createGoal } = useGoals();
+
+  const [quickGoalOpen, setQuickGoalOpen] = useState(false);
+  const [quickGoalTitle, setQuickGoalTitle] = useState("");
+  const [quickGoalType, setQuickGoalType] = useState("Career");
 
   // Query high-performance Analytics Copilot summary
   const { data: copilotSummary, isLoading: copilotLoading } = useQuery<any>({
@@ -40,7 +63,7 @@ function Dashboard() {
     queryFn: async () => {
       const res = await api.get("/analytics/copilot");
       return res.data;
-    }
+    },
   });
 
   const handleRegenerate = () => {
@@ -58,8 +81,26 @@ function Dashboard() {
         loading: "Optimizing schedule planner...",
         success: "AI Schedule plan regenerated successfully! 📅",
         error: "Failed to optimize schedule.",
-      }
+      },
     );
+  };
+
+  const handleQuickGoalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickGoalTitle.trim()) return;
+    try {
+      await createGoal({
+        title: quickGoalTitle.trim(),
+        type: quickGoalType,
+        status: "active",
+      });
+      toast.success("AI Goal created! Generating milestones roadmap...");
+      setQuickGoalTitle("");
+      setQuickGoalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["copilot"] });
+    } catch (err: any) {
+      toast.error(`Goal creation failed: ${err.message}`);
+    }
   };
 
   if (copilotLoading) {
@@ -67,7 +108,9 @@ function Dashboard() {
       <div className="flex h-[calc(100vh-10rem)] items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse">Running FlowPilot AI engines...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Running FlowPilot AI engines...
+          </p>
         </div>
       </div>
     );
@@ -94,263 +137,194 @@ function Dashboard() {
     }
   };
 
-  // Safe destructuring of scores and values from our high-fidelity backend payload
-  const lifeScore = copilotSummary?.scores?.lifeScore ?? 0;
-  const successScore = copilotSummary?.scores?.successScore ?? 0;
-  const successLabel = copilotSummary?.scores?.successLabel ?? 'Needs Focus';
-  const habitConsistency = copilotSummary?.scores?.habitConsistency ?? 0;
-  const consistencyBadge = copilotSummary?.scores?.consistencyBadge ?? 'Average';
-  const currentStreak = copilotSummary?.scores?.currentStreak ?? 0;
-  const lifeScoreTrend = copilotSummary?.scores?.lifeScoreTrend ?? "New Account";
+  // Safe destructuring of scores and values
+  const scores = copilotSummary?.scores || {};
+  const lifeScore = scores.lifeScore ?? 0;
+  const successScore = scores.successScore ?? 0;
+  const successLabel = scores.successLabel ?? "Needs Focus";
+  const habitConsistency = scores.habitConsistency ?? 0;
+  const consistencyBadge = scores.consistencyBadge ?? "Average";
+  const currentStreak = scores.currentStreak ?? 0;
+  const lifeScoreTrend = scores.lifeScoreTrend ?? "New Account";
 
-  const todayFocus = copilotSummary?.briefing?.todayFocus ?? 'Create high-priority tasks to begin!';
-  const nextBestAction = copilotSummary?.briefing?.nextBestAction ?? 'Schedule a Focus Sprint';
-  
-  const warnings = copilotSummary?.briefing?.warnings ?? { overdueCount: 0, habitRisk: false, plannerMissing: false };
-  const goals = copilotSummary?.goals ?? [];
-  const weeklyGoal = copilotSummary?.weeklyGoal ?? { completedHours: 0, targetHours: 25, percentage: 0 };
-  const recentActivities = copilotSummary?.recentActivities ?? [];
-  const todayPlanner = copilotSummary?.todayPlanner ?? [];
+  const xp = scores.xp ?? 0;
+  const level = scores.level ?? 1;
+
+  const todayFocus = copilotSummary?.briefing?.todayFocus ?? "Create high-priority tasks to begin!";
+  const nextBestAction = copilotSummary?.briefing?.nextBestAction ?? "Schedule a Focus Sprint";
+
+  const warnings = copilotSummary?.briefing?.warnings || {
+    overdueCount: 0,
+    habitRisk: false,
+    plannerMissing: false,
+  };
+  const activeGoals = copilotSummary?.goals || [];
+  const weeklyGoal = copilotSummary?.weeklyGoal || {
+    completedHours: 0,
+    targetHours: 25,
+    percentage: 0,
+  };
+  const recentActivities = copilotSummary?.recentActivities || [];
+  const todayPlanner = copilotSummary?.todayPlanner || [];
 
   const hasWarnings = warnings.overdueCount > 0 || warnings.habitRisk || warnings.plannerMissing;
 
-  const statsList = [
-    { 
-      label: "AI Life Score", 
-      value: `${lifeScore}/100`, 
-      detail: lifeScoreTrend, 
-      icon: Award, 
-      color: "lavender",
-      desc: "Overall balance score based on Tasks, Habits, Goals, and Planner adherence",
-      to: "/app/analytics"
-    },
-    { 
-      label: "Today's Success Score", 
-      value: `${successScore}%`, 
-      detail: successLabel, 
-      icon: CheckCircle2, 
-      color: "mint",
-      desc: "Completion rate of tasks scheduled and due for today",
-      to: "/app/analytics"
-    },
-    { 
-      label: "Habit Consistency", 
-      value: `${habitConsistency}%`, 
-      detail: consistencyBadge, 
-      icon: TrendingUp, 
-      color: "sky",
-      desc: "Completed vs expected habit check-ins over the past 30 days",
-      to: "/app/dashboard"
-    },
-    { 
-      label: "Active Streak", 
-      value: `${currentStreak} Days`, 
-      detail: currentStreak >= 5 ? "Consistent 🔥" : "Keep it up!", 
-      icon: Flame, 
-      color: "peach",
-      desc: "Consecutive days with Success Score >= 70% and Habit Completion >= 70%",
-      to: "/app/dashboard"
-    },
-  ];
+  // Next focus block detection
+  const focusBlocks = todayPlanner.filter((b: any) => b.type === "focus");
+  const nextFocusBlock = focusBlocks[0];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      {/* Welcome banner */}
+      {/* 1. Welcome Greeting Banner */}
       <motion.section
-        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
         className="relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 shadow-soft md:p-8"
       >
-        <div className="absolute inset-0 -z-10 gradient-mesh opacity-60" />
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="absolute inset-0 -z-10 gradient-mesh opacity-65" />
+        <div className="flex flex-wrap items-center justify-between gap-6">
           <div>
             <p className="text-xs text-muted-foreground">{todayDateStr}</p>
             <h1 className="mt-1 font-display text-4xl md:text-5xl">
               Good morning, <span className="text-gradient italic">{displayName}</span>
             </h1>
-            <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-              {todayPlanner.length > 0 
-                ? `You have ${todayPlanner.filter((b: any) => b.type === 'focus').length} deep-work sessions mapped out for today. Keep pushing!`
+            <p className="mt-2 max-w-lg text-sm text-muted-foreground leading-normal">
+              {todayPlanner.length > 0
+                ? `Daily plan loaded! You have ${focusBlocks.length} deep-work focus sessions optimized for today.`
                 : "No focus blocks scheduled for today. Generate an optimized plan to command your workflow!"}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={handleRegenerate}
-              disabled={isGenerating}
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-60 cursor-pointer"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Mapped by AI...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5" /> Regenerate plan
-                </>
-              )}
-            </button>
+
+          {/* Level Badge cockpit */}
+          <div className="flex items-center gap-3 bg-card/65 backdrop-blur border border-border/60 rounded-2xl p-4 shadow-soft">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-primary to-[oklch(0.75_0.13_220)] text-base font-bold text-white shadow-soft">
+              Lvl {level}
+            </div>
+            <div>
+              <div className="text-xs font-bold text-foreground">Outcomes Level</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{xp} XP accumulated</div>
+            </div>
           </div>
         </div>
       </motion.section>
 
-      {/* 1. Core KPIs Row */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statsList.map((s, i) => (
-          <Link
-            key={s.label}
-            to={s.to}
-            className={cn(cardClass, "block cursor-pointer relative group/card")}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.04 * i }}
-              className="h-full flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <div className="grid h-9 w-9 place-items-center rounded-xl transition-transform group-hover/card:scale-105"
-                    style={{ background: `color-mix(in oklab, var(--${s.color}) 65%, var(--card))` }}>
-                    <s.icon className="h-4 w-4 text-foreground/80" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {s.label === "AI Life Score" && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                        Active Weights
-                      </span>
-                    )}
-                    <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 -translate-y-0.5 translate-x-0.5 transition-all group-hover/card:opacity-100 group-hover/card:translate-y-0 group-hover/card:translate-x-0 group-hover/card:text-primary" />
-                  </div>
-                </div>
-                
-                <div className="mt-3.5 flex items-baseline justify-between">
-                  <div className="font-display text-3xl font-semibold tracking-tight">{s.value}</div>
-                  <div className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase",
-                    s.label === "Active Streak" && currentStreak > 0 ? "bg-orange-500/10 text-orange-500" :
-                    s.label === "Today's Success Score" && successScore >= 70 ? "bg-emerald-500/10 text-emerald-500" :
-                    s.label === "Habit Consistency" && habitConsistency >= 70 ? "bg-sky-500/10 text-sky-500" :
-                    "bg-primary/10 text-primary"
-                  )}>
-                    {s.detail}
-                  </div>
-                </div>
-                
-                <div className="mt-1 text-xs font-semibold text-foreground/80">{s.label}</div>
-                
-                {/* Embedded custom progress bars for stats if applicable */}
-                {s.label === "Today's Success Score" && (
-                  <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div 
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" 
-                      style={{ width: `${successScore}%` }} 
-                    />
-                  </div>
-                )}
-                {s.label === "Habit Consistency" && (
-                  <div className="mt-3.5 h-1.5 overflow-hidden rounded-full bg-secondary">
-                    <div 
-                      className="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-400 transition-all duration-500" 
-                      style={{ width: `${habitConsistency}%` }} 
-                    />
-                  </div>
-                )}
+      {/* 2. Unified Life Score circular progress row */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          {
+            label: "AI Life Score",
+            value: `${lifeScore}`,
+            detail: lifeScoreTrend,
+            pct: lifeScore,
+            color: "lavender",
+          },
+          {
+            label: "Success Rate",
+            value: `${successScore}%`,
+            detail: successLabel,
+            pct: successScore,
+            color: "mint",
+          },
+          {
+            label: "Habit Consistency",
+            value: `${habitConsistency}%`,
+            detail: consistencyBadge,
+            pct: habitConsistency,
+            color: "sky",
+          },
+          {
+            label: "Weekly Goal",
+            value: `${weeklyGoal.completedHours}h`,
+            detail: `${weeklyGoal.percentage}% target`,
+            pct: weeklyGoal.percentage,
+            color: "peach",
+          },
+        ].map((item, idx) => (
+          <div key={item.label} className={cn(cardClass, "flex items-center gap-4.5 group/card")}>
+            {/* SVG HSL Circle */}
+            <div className="relative h-14 w-14 shrink-0">
+              <svg className="h-full w-full -rotate-90">
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="23"
+                  className="stroke-secondary fill-transparent"
+                  strokeWidth="4"
+                />
+                <circle
+                  cx="28"
+                  cy="28"
+                  r="23"
+                  className="transition-all duration-700 fill-transparent"
+                  strokeWidth="4"
+                  strokeDasharray={144.5}
+                  strokeDashoffset={144.5 - (144.5 * Math.min(100, item.pct)) / 100}
+                  strokeLinecap="round"
+                  style={{ stroke: `var(--${item.color})` }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-xs font-bold font-mono">
+                {item.value.replace("%", "")}
               </div>
-              
-              <p className="mt-2.5 text-[9px] leading-normal text-muted-foreground">{s.desc}</p>
-            </motion.div>
-          </Link>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+                {item.label}
+              </div>
+              <div className="text-xs font-bold mt-1 text-foreground/80">{item.detail}</div>
+            </div>
+          </div>
         ))}
       </section>
 
-      {/* Main split grid */}
+      {/* 3. Main Dashboard Cockpit */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left Side: Intelligent Daily Brief & Today's Plan */}
+        {/* Left Column: Agenda & Next Focus Segment */}
         <div className="space-y-6 lg:col-span-2">
-          
-          {/* AI Daily Briefing Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`${cardClass} bg-gradient-to-br from-card to-primary/5 border-primary/20`}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
-                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> AI Daily Briefing
-              </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">FlowPilot Assistant</span>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                {/* Today's Focus */}
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                    <Brain className="h-3.5 w-3.5 text-primary" /> Today's Focus
-                  </h4>
-                  <div className="mt-1.5 rounded-2xl bg-secondary/40 border border-border/40 p-3.5">
-                    <p className="text-xs font-semibold text-foreground leading-snug">{todayFocus}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Suggested highest-priority task on your Kanban sheet.</p>
-                  </div>
+          {/* Next Focus Block Alert Panel */}
+          {nextFocusBlock && (
+            <motion.div
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/5 via-[oklch(0.85_0.08_220)]/10 to-[oklch(0.85_0.08_160)]/10 p-5 flex items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Brain className="h-5 w-5 animate-pulse" />
                 </div>
-
-                {/* Suggested Action */}
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5 text-indigo-500" /> Recommended Action
-                  </h4>
-                  <div className="mt-1.5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 p-3.5">
-                    <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 leading-snug">{nextBestAction}</p>
+                  <div className="text-[9px] uppercase font-bold text-primary tracking-wider">
+                    Next Focus Block
                   </div>
+                  <h4 className="text-xs font-bold mt-0.5">{nextFocusBlock.label}</h4>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                    {formatTime(nextFocusBlock.start_time)} – {formatTime(nextFocusBlock.end_time)}
+                  </p>
                 </div>
               </div>
+              <Link
+                to="/app/planner"
+                className="rounded-full bg-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground hover:opacity-90 shrink-0"
+              >
+                Launch Focus
+              </Link>
+            </motion.div>
+          )}
 
-              {/* Top Active Goals Preview */}
-              <div className="space-y-3.5">
-                <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                  <Target className="h-3.5 w-3.5 text-violet-500" /> Top Active Goals
-                </h4>
-                {goals.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic py-2">No active goals. Add some in the Goals page.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {goals.slice(0, 3).map((g: any) => (
-                      <div key={g.id} className="rounded-xl border border-border/40 bg-secondary/20 p-2.5 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold truncate max-w-[150px]">{g.title}</span>
-                          <span className="font-bold text-primary text-[9px] bg-primary/10 px-1.5 py-0.5 rounded-md uppercase shrink-0">
-                            {g.type}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-[9px] text-muted-foreground mb-1">
-                            <span>Progress</span>
-                            <span>{g.progress}%</span>
-                          </div>
-                          <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${g.progress}%` }} />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Today's Planner Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`${cardClass}`}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
+          {/* Daily Schedule agenda */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Daily Agenda</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Daily Agenda
+                </div>
                 <h2 className="mt-0.5 text-lg font-semibold flex items-center gap-2">
-                  <Calendar className="h-4.5 w-4.5 text-muted-foreground" /> Today's Planner
+                  <Calendar className="h-4.5 w-4.5 text-muted-foreground" /> Today's Execution Plan
                 </h2>
               </div>
-              <Link 
-                to="/app/planner" 
+              <Link
+                to="/app/planner"
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer"
               >
                 Open Planner →
@@ -358,11 +332,13 @@ function Dashboard() {
             </div>
 
             {todayPlanner.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="flex flex-col items-center justify-center py-12 text-center">
                 <Sparkles className="h-8 w-8 text-primary animate-pulse mb-3" />
-                <h3 className="font-semibold text-sm">Planner empty</h3>
-                <p className="text-xs text-muted-foreground max-w-xs mt-1">No schedule blocks optimized for today. Kickstart your day with AI scheduling.</p>
-                <button 
+                <h3 className="font-semibold text-sm">Planner schedule empty</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mt-1">
+                  No focus slots configured for today. Optimize your agenda now with AI.
+                </p>
+                <button
                   onClick={handleRegenerate}
                   className="mt-4 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 cursor-pointer"
                 >
@@ -370,300 +346,299 @@ function Dashboard() {
                 </button>
               </div>
             ) : (
-              <div className="mt-4 space-y-2 max-h-[350px] overflow-y-auto pr-1 scrollbar-thin">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-0.5 scrollbar-thin">
                 {todayPlanner.map((b: any, idx: number) => {
                   const Icon = TYPE_ICONS[b.type as keyof typeof TYPE_ICONS] || Zap;
                   return (
-                    <motion.div
+                    <div
                       key={b.id}
-                      initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.04 * idx }}
                       className="group flex items-center gap-4 rounded-2xl border border-transparent bg-secondary/30 p-3.5 transition-all hover:border-border hover:bg-card hover:shadow-soft"
                     >
-                      <div className="w-12 text-xs font-semibold text-muted-foreground">{formatTime(b.start_time)}</div>
-                      <div className="flex h-9 w-9 shrink-0 place-items-center rounded-xl"
-                        style={{ background: `color-mix(in oklab, var(--${b.color || 'lavender'}) 70%, var(--card))` }}>
+                      <div className="w-12 text-[10px] font-bold text-muted-foreground">
+                        {formatTime(b.start_time)}
+                      </div>
+                      <div
+                        className="flex h-9 w-9 shrink-0 place-items-center rounded-xl"
+                        style={{
+                          background: `color-mix(in oklab, var(--${b.color || "lavender"}) 70%, var(--card))`,
+                        }}
+                      >
                         <Icon className="h-4 w-4 text-foreground/70" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold leading-none">{b.label}</div>
-                        <div className="text-[10px] text-muted-foreground mt-1.5 capitalize font-medium">
+                        <div className="truncate text-xs font-bold leading-none">{b.label}</div>
+                        <div className="text-[9px] text-muted-foreground mt-1 capitalize font-medium">
                           {b.type} · {formatTime(b.start_time)} – {formatTime(b.end_time)}
                         </div>
                       </div>
-                      <span className="rounded-full bg-card border border-border/80 px-2 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground tracking-wider">
+                      <span className="rounded-full bg-card border border-border/80 px-2 py-0.5 text-[8px] font-bold uppercase text-muted-foreground tracking-wider">
                         Active
                       </span>
-                    </motion.div>
+                    </div>
                   );
                 })}
               </div>
             )}
-          </motion.div>
+          </div>
 
-          {/* Habits Cockpit Widget Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={cn(cardClass, "space-y-4")}
+          {/* AI Intelligence recommendations briefings */}
+          <div
+            className={cn(cardClass, "bg-gradient-to-br from-card to-primary/5 border-primary/20")}
           >
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-primary">Daily Habits</div>
-                <h2 className="mt-0.5 text-lg font-semibold flex items-center gap-2">
-                  <Repeat className="h-4.5 w-4.5 text-muted-foreground" /> Today's Habits
-                </h2>
+            <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> AI Daily Briefing
               </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">Quick Action Cockpit</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
+                    <Brain className="h-3.5 w-3.5 text-primary" /> Today's Focus
+                  </h4>
+                  <div className="mt-1.5 rounded-2xl bg-secondary/40 border border-border/40 p-3">
+                    <p className="text-xs font-bold text-foreground leading-snug">{todayFocus}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5 text-indigo-500" /> Recommended Action
+                  </h4>
+                  <div className="mt-1.5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 p-3">
+                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 leading-snug">
+                      {nextBestAction}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Real-time Diagnostics Warning panel */}
+              <div className="space-y-3.5">
+                <h4 className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
+                  <ShieldAlert className="h-3.5 w-3.5 text-primary" /> Warnings Engine
+                </h4>
+
+                <div className="space-y-2">
+                  {!hasWarnings ? (
+                    <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        All OS modules optimized!
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {warnings.overdueCount > 0 && (
+                        <div className="flex items-center gap-2.5 rounded-2xl bg-red-500/5 border border-red-500/10 p-2.5">
+                          <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                          <span className="text-[10px] font-bold text-red-500">
+                            ⚠️ {warnings.overdueCount} overdue tasks dropping score
+                          </span>
+                        </div>
+                      )}
+                      {warnings.habitRisk && (
+                        <div className="flex items-center gap-2.5 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 p-2.5">
+                          <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                          <span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400">
+                            ⚠️ Habit consistency dropped average
+                          </span>
+                        </div>
+                      )}
+                      {warnings.plannerMissing && (
+                        <div className="flex items-center gap-2.5 rounded-2xl bg-blue-500/5 border border-blue-500/10 p-2.5">
+                          <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0" />
+                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                            ⚠️ Generate planner schedule for today
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Habits, Goals, Quick Actions */}
+        <div className="space-y-6">
+          {/* Quick Actions Panel */}
+          <div className={cn(cardClass, "bg-gradient-to-br from-card to-secondary/35")}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" /> Quick Command Bar
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleRegenerate}
+                disabled={isGenerating}
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-soft cursor-pointer flex flex-col items-center gap-1"
+              >
+                <Calendar className="h-5 w-5 text-primary" />
+                <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
+                  Optimize planner
+                </span>
+              </button>
+
+              <button
+                onClick={() => setQuickGoalOpen((v) => !v)}
+                className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-soft cursor-pointer flex flex-col items-center gap-1"
+              >
+                <Target className="h-5 w-5 text-indigo-500" />
+                <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
+                  Add AI Goal
+                </span>
+              </button>
+            </div>
+
+            {/* Quick add goal inline form */}
+            <AnimatePresence>
+              {quickGoalOpen && (
+                <motion.form
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  onSubmit={handleQuickGoalSubmit}
+                  className="mt-3.5 pt-3.5 border-t border-border/30 space-y-2.5 overflow-hidden text-xs"
+                >
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Goal Title</span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Learn DSA Concepts"
+                      value={quickGoalTitle}
+                      onChange={(e) => setQuickGoalTitle(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none"
+                    />
+                  </label>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setQuickGoalOpen(false)}
+                      className="rounded-xl border border-border bg-card px-3 py-1.5 text-[10px] font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!quickGoalTitle.trim()}
+                      className="rounded-xl bg-foreground text-background px-3 py-1.5 text-[10px] font-bold cursor-pointer"
+                    >
+                      Save Goal
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Integrated Habits Widget Cockpit */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Repeat className="h-4 w-4 text-primary" /> Integrated Habits Cockpit
+              </h3>
             </div>
 
             {habits.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Zap className="h-7 w-7 text-primary animate-pulse mb-2 opacity-60" />
-                <h3 className="font-semibold text-sm">No habits configured</h3>
-                <p className="text-xs text-muted-foreground max-w-xs mt-1">Configure your habits in settings to start tracking consistency.</p>
-              </div>
+              <p className="text-[10px] text-muted-foreground italic">
+                No habits configured. Set up habits to track streaks.
+              </p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {habits.map((h: any) => {
+              <div className="space-y-3">
+                {habits.slice(0, 3).map((h: any) => {
                   const todayCompleted = h.days?.[6] === 1;
                   return (
-                    <div key={h.id} className="rounded-2xl border border-border/60 bg-secondary/20 p-4 flex flex-col justify-between space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold truncate">{h.name}</div>
-                          <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
-                            <Flame className="h-3 w-3 text-orange-500" /> {h.streak}-day streak ({h.pct}% consistency)
-                          </div>
+                    <div
+                      key={h.id}
+                      className="flex items-center justify-between gap-3 bg-secondary/25 border border-border/30 rounded-2xl p-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold truncate">{h.name}</div>
+                        <div className="text-[9px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Flame className="h-3 w-3 text-orange-500" /> {h.streak}d streak · {h.pct}
+                          % consistency
                         </div>
-                        <button
-                          onClick={() => {
-                            const todayStr = new Date().toLocaleDateString('en-CA');
-                            toggleHabit({ id: h.id, date: todayStr, completed: !todayCompleted });
-                            toast.success(todayCompleted ? "Habit unchecked" : "Habit checked off! Keep it up 🔥");
-                          }}
-                          className={cn(
-                            "rounded-full p-1.5 shrink-0 transition-all border cursor-pointer",
+                      </div>
+                      <button
+                        onClick={() => {
+                          const todayStr = new Date().toLocaleDateString("en-CA");
+                          toggleHabit({ id: h.id, date: todayStr, completed: !todayCompleted });
+                          toast.success(
                             todayCompleted
-                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20"
-                              : "bg-card border-border/80 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          )}
-                          title={todayCompleted ? "Uncheck habit" : "Complete habit"}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      {/* Past 7 days visualization */}
-                      <div className="flex justify-between gap-1 border-t border-border/30 pt-3">
-                        {Array.from({ length: 7 }, (_, i) => {
-                          const dayVal = h.days?.[i] || 0;
-                          const isToday = i === 6;
-                          const d = new Date();
-                          d.setDate(d.getDate() - (6 - i));
-                          const dayLabel = ["S", "M", "T", "W", "T", "F", "S"][d.getDay()];
-                          const todayStr = new Date().toLocaleDateString('en-CA');
-
-                          return (
-                            <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                              <span className="text-[9px] text-muted-foreground font-semibold">{isToday ? "Today" : dayLabel}</span>
-                              <button
-                                onClick={() => {
-                                  if (isToday) {
-                                    toggleHabit({ id: h.id, date: todayStr, completed: dayVal !== 1 });
-                                    toast.success(dayVal === 1 ? "Habit unchecked" : "Habit checked off! Keep it up 🔥");
-                                  } else {
-                                    toast.info("Past dates cannot be altered. Stay focused on today!");
-                                  }
-                                }}
-                                className={cn(
-                                  "h-5 w-full rounded-md transition-all border border-transparent text-[8px] flex items-center justify-center font-bold cursor-pointer select-none",
-                                  dayVal === 1 ? "text-white hover:scale-105 active:scale-95" : isToday ? "bg-secondary text-muted-foreground hover:scale-105 active:scale-95 border-primary/30" : "bg-secondary/40 text-muted-foreground/30 cursor-not-allowed",
-                                  !isToday && "cursor-not-allowed hover:bg-secondary/35"
-                                )}
-                                style={dayVal === 1 ? { background: `color-mix(in oklab, var(--${h.color || "mint"}) 80%, var(--card))` } : undefined}
-                                title={isToday ? "Click to toggle today's habit check-in" : "Past record (locked)"}
-                              >
-                                {dayVal === 1 ? "✓" : "•"}
-                              </button>
-                            </div>
+                              ? "Habit unchecked"
+                              : "Habit checked off! Keep pushing 🔥",
                           );
-                        })}
-                      </div>
+                        }}
+                        className={cn(
+                          "h-8 w-8 rounded-full flex items-center justify-center transition-all border cursor-pointer",
+                          todayCompleted
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20"
+                            : "bg-card border-border/80 text-muted-foreground hover:bg-secondary",
+                        )}
+                      >
+                        <CheckCircle2 className="h-4.5 w-4.5" />
+                      </button>
                     </div>
                   );
                 })}
               </div>
             )}
-          </motion.div>
+          </div>
 
-        </div>
-
-        {/* Right Side: Proactive Warnings, Goals, Activity Stream */}
-        <div className="space-y-6">
-
-          {/* Proactive Warnings Engine Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={cardClass}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
+          {/* Goals Snapshot containing Next Milestones */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <ShieldAlert className="h-4 w-4 text-primary" /> Warning Engine
+                <Target className="h-4 w-4 text-primary" /> Active Goals Snapshot
               </h3>
-              <span className="text-[9px] uppercase font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
-                Real-time
-              </span>
-            </div>
-
-            <div className="mt-3.5 space-y-2">
-              {!hasWarnings ? (
-                <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-3.5">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">All workspace modules are active and optimized!</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {warnings.overdueCount > 0 && (
-                    <div className="flex items-center gap-2.5 rounded-2xl bg-red-500/5 border border-red-500/10 p-3.5">
-                      <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
-                      <span className="text-xs font-semibold text-red-500">⚠️ {warnings.overdueCount} overdue tasks impacting score</span>
-                    </div>
-                  )}
-                  {warnings.habitRisk && (
-                    <div className="flex items-center gap-2.5 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 p-3.5">
-                      <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
-                      <span className="text-xs font-semibold text-yellow-600 dark:text-yellow-400">⚠️ Habit consistency dropping below 50%</span>
-                    </div>
-                  )}
-                  {warnings.plannerMissing && (
-                    <div className="flex items-center gap-2.5 rounded-2xl bg-blue-500/5 border border-blue-500/10 p-3.5">
-                      <AlertTriangle className="h-4 w-4 text-blue-500 shrink-0" />
-                      <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">⚠️ Generate today's plan to start agenda</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Active Goals Checklist Cards */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={cardClass}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-primary" /> Active Goals Progress
-              </h3>
-              <Link to="/app/goals" className="text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors cursor-pointer">
+              <Link
+                to="/app/goals"
+                className="text-[9px] font-bold text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+              >
                 View All →
               </Link>
             </div>
 
-            <div className="mt-4 space-y-3.5">
-              {goals.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No active goals found. Set a goal to track your growth!</p>
+            <div className="space-y-4">
+              {activeGoals.length === 0 ? (
+                <p className="text-[10px] text-muted-foreground italic">
+                  No active goals set. Formulate your destination goals in Goals page.
+                </p>
               ) : (
-                goals.map((g: any) => (
+                activeGoals.slice(0, 3).map((g: any) => (
                   <div key={g.id} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-foreground truncate max-w-[180px]">{g.title}</span>
+                      <span className="font-bold text-foreground truncate max-w-[150px]">
+                        {g.title}
+                      </span>
                       <span className="font-bold text-muted-foreground text-[10px] shrink-0">
                         {g.progress}%
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                      <div 
-                        className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] transition-all duration-500" 
-                        style={{ width: `${g.progress}%` }} 
+                    <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] transition-all duration-500"
+                        style={{ width: `${g.progress}%` }}
                       />
                     </div>
-                    {g.targetDate && (
-                      <p className="text-[9px] text-muted-foreground text-right font-medium">
-                        Target: {g.targetDate.split('T')[0]}
+                    {g.nextMilestone && (
+                      <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1 bg-secondary/35 rounded-lg px-2 py-1 select-none">
+                        <Sparkles className="h-3 w-3 text-primary shrink-0 animate-pulse" />
+                        <span className="font-bold text-foreground/80 shrink-0">Next:</span>
+                        <span className="truncate">{g.nextMilestone}</span>
                       </p>
                     )}
                   </div>
                 ))
               )}
             </div>
-          </motion.div>
-
-          {/* Weekly Goal Progress Card */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={cardClass}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <ClipboardList className="h-4 w-4 text-primary" /> Weekly Goal Progress
-              </h3>
-              <span className="text-[10px] font-semibold text-muted-foreground">{weeklyGoal.percentage}%</span>
-            </div>
-
-            <div className="mt-3.5">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary shrink-0" />
-                <div className="text-xs font-semibold">{weeklyGoal.targetHours}h deep work target</div>
-              </div>
-              <div className="mt-4">
-                <div className="flex items-end justify-between text-[10px] text-muted-foreground mb-1 font-medium">
-                  <span>{weeklyGoal.completedHours}h completed</span>
-                  <span>{weeklyGoal.targetHours}h target</span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
-                  <div 
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-[oklch(0.75_0.13_220)] transition-all duration-500" 
-                    style={{ width: `${weeklyGoal.percentage}%` }} 
-                  />
-                </div>
-              </div>
-              <p className="mt-3.5 text-[10px] leading-relaxed text-muted-foreground">
-                {weeklyGoal.percentage >= 100 
-                  ? "Outstanding efficiency! You surpassed your weekly deep work flow hours! 🏆"
-                  : `You are currently at ${weeklyGoal.percentage}% of your weekly deep work flow targets.`}
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Recent Activity Feed Timeline */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={cardClass}
-          >
-            <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Activity className="h-4 w-4 text-primary" /> Recent Activity
-              </h3>
-              <span className="text-[9px] uppercase font-bold text-muted-foreground">Stream</span>
-            </div>
-
-            <div className="mt-4 space-y-4 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-              {recentActivities.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">No recent workspace actions logged.</p>
-              ) : (
-                recentActivities.map((a: any, idx: number) => (
-                  <div key={idx} className="flex gap-3 text-xs leading-tight">
-                    <span 
-                      className="h-2 w-2 rounded-full shrink-0 mt-1" 
-                      style={{ background: `var(--${a.color || 'mint'})` }} 
-                    />
-                    <div className="flex-1 space-y-0.5">
-                      <p className="text-foreground/90 font-medium">{a.title}</p>
-                      <p className="text-[9px] text-muted-foreground font-semibold">
-                        {new Date(a.timestamp).toLocaleTimeString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </motion.div>
-
+          </div>
         </div>
       </section>
     </div>

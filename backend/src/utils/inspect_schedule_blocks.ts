@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase } from "../lib/supabase.js";
 
 async function run() {
   console.log("Inspecting 'schedule_blocks' table...");
   try {
-    const { data, error } = await supabase.from('schedule_blocks').select('*').limit(1);
+    const { data, error } = await supabase.from("schedule_blocks").select("*").limit(1);
     if (error) {
       console.log("❌ Error:", error.message);
     } else {

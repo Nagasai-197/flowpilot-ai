@@ -1,5 +1,5 @@
 export interface MemoryMessage {
-  role: 'user' | 'model';
+  role: "user" | "model";
   text: string;
 }
 
@@ -11,7 +11,7 @@ export interface UserSessionMemory {
 
 export class AssistantSessionMemory {
   private static memories = new Map<string, UserSessionMemory>();
-  
+
   // 5 user turns + 5 assistant responses = 10 messages maximum limit
   private static readonly MAX_LIMIT = 10;
 
@@ -33,7 +33,7 @@ export class AssistantSessionMemory {
 
     // 2. Fetch or create targeted memory
     const existing = this.memories.get(userId);
-    if (!existing || (now - existing.updatedAt > this.TTL_MS)) {
+    if (!existing || now - existing.updatedAt > this.TTL_MS) {
       const freshMemory: UserSessionMemory = {
         messages: [],
         updatedAt: now,
@@ -48,7 +48,7 @@ export class AssistantSessionMemory {
   /**
    * Appends a new conversation message and trims history automatically
    */
-  static appendMessage(userId: string, role: 'user' | 'model', text: string): void {
+  static appendMessage(userId: string, role: "user" | "model", text: string): void {
     const memory = this.getMemory(userId);
     memory.messages.push({ role, text });
     memory.updatedAt = Date.now();

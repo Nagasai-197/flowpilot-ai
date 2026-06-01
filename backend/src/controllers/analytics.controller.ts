@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { AnalyticsService } from '../services/analytics.service.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { AnalyticsService } from "../services/analytics.service.js";
+import { UnauthorizedError } from "../utils/errors.js";
 
 export class AnalyticsController {
   /**
@@ -16,7 +16,7 @@ export class AnalyticsController {
       const localDate = req.query.localDate as string | undefined;
       const stats = await AnalyticsService.getDashboardStats(userId, localDate);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: stats,
       });
     } catch (err) {
@@ -37,7 +37,7 @@ export class AnalyticsController {
       const localDate = req.query.localDate as string | undefined;
       const trend = await AnalyticsService.getTrendStats(userId, localDate);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           trend,
         },
@@ -60,7 +60,7 @@ export class AnalyticsController {
       const localDate = req.query.localDate as string | undefined;
       const heatmap = await AnalyticsService.getHeatmapStats(userId, localDate);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           heatmap,
         },

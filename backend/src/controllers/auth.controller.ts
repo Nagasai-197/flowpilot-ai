@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/auth.service.js';
-import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { AuthService } from "../services/auth.service.js";
+import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
 
 export class AuthController {
   /**
@@ -10,14 +10,14 @@ export class AuthController {
     const { email, password, fullName, timezone } = req.body;
 
     if (!email || !password || !fullName) {
-      return next(new BadRequestError('Email, password, and full name are required'));
+      return next(new BadRequestError("Email, password, and full name are required"));
     }
 
     try {
       const data = await AuthService.signUpUser(email, password, fullName, timezone);
       res.status(201).json({
-        status: 'success',
-        message: 'Registration successful. Please check your email to verify your account.',
+        status: "success",
+        message: "Registration successful. Please check your email to verify your account.",
         data: {
           user: data.user,
         },
@@ -34,14 +34,14 @@ export class AuthController {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return next(new BadRequestError('Email and password are required'));
+      return next(new BadRequestError("Email and password are required"));
     }
 
     try {
       const { user, session } = await AuthService.logInUser(email, password);
       res.status(200).json({
-        status: 'success',
-        message: 'Authentication successful',
+        status: "success",
+        message: "Authentication successful",
         data: {
           user,
           session: {
@@ -61,11 +61,11 @@ export class AuthController {
    */
   static async getMe(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (!req.user) {
-      return next(new UnauthorizedError('Not authenticated'));
+      return next(new UnauthorizedError("Not authenticated"));
     }
 
     res.status(200).json({
-      status: 'success',
+      status: "success",
       data: {
         user: req.user,
       },
@@ -78,17 +78,17 @@ export class AuthController {
   static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(new UnauthorizedError('Not logged in'));
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next(new UnauthorizedError("Not logged in"));
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
 
     try {
       await AuthService.logOutUser(token);
       res.status(200).json({
-        status: 'success',
-        message: 'Successfully logged out',
+        status: "success",
+        message: "Successfully logged out",
       });
     } catch (err) {
       next(err);

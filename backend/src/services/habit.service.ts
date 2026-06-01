@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabase.js';
-import { NotFoundError, AppError, BadRequestError } from '../utils/errors.js';
+import { supabase } from "../lib/supabase.js";
+import { NotFoundError, AppError, BadRequestError } from "../utils/errors.js";
 
 export class HabitService {
   /**
@@ -11,12 +11,12 @@ export class HabitService {
     // Filter to completed and sort by date descending
     const completedDates = logs
       .filter((l) => l.completed)
-      .map((l) => new Date(l.date + 'T12:00:00'))
+      .map((l) => new Date(l.date + "T12:00:00"))
       .sort((a, b) => b.getTime() - a.getTime());
 
     if (completedDates.length === 0) return 0;
 
-    const today = localDate ? new Date(localDate + 'T12:00:00') : new Date();
+    const today = localDate ? new Date(localDate + "T12:00:00") : new Date();
     today.setHours(0, 0, 0, 0);
 
     const yesterday = new Date(today);
@@ -59,14 +59,14 @@ export class HabitService {
    * Fetch all habits for a specific user, including streaks and completion statistics
    */
   static async getHabitsForUser(userId: string, localDate?: string) {
-    const todayStr = localDate || new Date().toISOString().split('T')[0];
-    const today = localDate ? new Date(localDate + 'T12:00:00') : new Date();
+    const todayStr = localDate || new Date().toISOString().split("T")[0];
+    const today = localDate ? new Date(localDate + "T12:00:00") : new Date();
 
     const { data: habits, error: habitsError } = await supabase
-      .from('habits')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
+      .from("habits")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
 
     if (habitsError) {
       throw new AppError(`Failed to fetch habits: ${habitsError.message}`, 500);
@@ -81,15 +81,15 @@ export class HabitService {
     // Fetch logs for the last 30 days to calculate completion rate and active streaks
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const startDateStr = thirtyDaysAgo.toISOString().split("T")[0];
 
     // Query 'completed_at' since 'date' doesn't exist on habit_logs
     const { data: logs, error: logsError } = await supabase
-      .from('habit_logs')
-      .select('habit_id, completed_at')
-      .in('habit_id', habitIds)
-      .gte('completed_at', `${startDateStr}T00:00:00Z`)
-      .lte('completed_at', `${todayStr}T23:59:59Z`);
+      .from("habit_logs")
+      .select("habit_id, completed_at")
+      .in("habit_id", habitIds)
+      .gte("completed_at", `${startDateStr}T00:00:00Z`)
+      .lte("completed_at", `${todayStr}T23:59:59Z`);
 
     if (logsError) {
       throw new AppError(`Failed to fetch habit logs: ${logsError.message}`, 500);
@@ -98,7 +98,7 @@ export class HabitService {
     const logsMap = new Map<string, { date: string; completed: boolean }[]>();
     logs?.forEach((log) => {
       if (!log.completed_at) return;
-      const dateStr = log.completed_at.split('T')[0];
+      const dateStr = log.completed_at.split("T")[0];
       const existing = logsMap.get(log.habit_id) || [];
       existing.push({ date: dateStr, completed: true });
       logsMap.set(log.habit_id, existing);
@@ -108,7 +108,7 @@ export class HabitService {
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      past7Days.push(d.toISOString().split('T')[0]);
+      past7Days.push(d.toISOString().split("T")[0]);
     }
 
     return habits.map((habit) => {
@@ -128,7 +128,7 @@ export class HabitService {
       return {
         id: habit.id,
         name: habit.name,
-        color: habit.color || 'mint', // Default fallback color if column doesn't exist in DB
+        color: habit.color || "mint", // Default fallback color if column doesn't exist in DB
         streak,
         pct: Math.min(100, pct),
         days,
@@ -141,11 +141,11 @@ export class HabitService {
    */
   static async createHabitForUser(userId: string, payload: { name: string; color?: string }) {
     const { data, error } = await supabase
-      .from('habits')
+      .from("habits")
       .insert({
         user_id: userId,
         name: payload.name,
-        color: payload.color || 'mint',
+        color: payload.color || "mint",
       })
       .select()
       .single();
@@ -163,17 +163,17 @@ export class HabitService {
   static async updateHabitForUser(
     habitId: string,
     userId: string,
-    payload: { name?: string; color?: string }
+    payload: { name?: string; color?: string },
   ) {
     const { data: existing, error: existError } = await supabase
-      .from('habits')
-      .select('id')
-      .eq('id', habitId)
-      .eq('user_id', userId)
+      .from("habits")
+      .select("id")
+      .eq("id", habitId)
+      .eq("user_id", userId)
       .single();
 
     if (existError || !existing) {
-      throw new NotFoundError('Habit not found');
+      throw new NotFoundError("Habit not found");
     }
 
     const updatePayload: Record<string, any> = {};
@@ -181,10 +181,10 @@ export class HabitService {
     if (payload.color !== undefined) updatePayload.color = payload.color;
 
     const { data, error } = await supabase
-      .from('habits')
+      .from("habits")
       .update(updatePayload)
-      .eq('id', habitId)
-      .eq('user_id', userId)
+      .eq("id", habitId)
+      .eq("user_id", userId)
       .select()
       .single();
 
@@ -200,21 +200,21 @@ export class HabitService {
    */
   static async deleteHabitForUser(habitId: string, userId: string): Promise<void> {
     const { data: existing, error: existError } = await supabase
-      .from('habits')
-      .select('id')
-      .eq('id', habitId)
-      .eq('user_id', userId)
+      .from("habits")
+      .select("id")
+      .eq("id", habitId)
+      .eq("user_id", userId)
       .single();
 
     if (existError || !existing) {
-      throw new NotFoundError('Habit not found');
+      throw new NotFoundError("Habit not found");
     }
 
     const { error } = await supabase
-      .from('habits')
+      .from("habits")
       .delete()
-      .eq('id', habitId)
-      .eq('user_id', userId);
+      .eq("id", habitId)
+      .eq("user_id", userId);
 
     if (error) {
       throw new AppError(`Failed to delete habit: ${error.message}`, 400);
@@ -228,45 +228,45 @@ export class HabitService {
     habitId: string,
     userId: string,
     date: string,
-    completed: boolean
+    completed: boolean,
   ) {
     // 1. Fetch user's timezone from their profile
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('timezone')
-      .eq('id', userId)
+      .from("profiles")
+      .select("timezone")
+      .eq("id", userId)
       .single();
 
-    const timezone = profile?.timezone || 'UTC';
+    const timezone = profile?.timezone || "UTC";
 
     // 2. Compute today's date string in the user's timezone
     let todayStr: string;
     try {
-      todayStr = new Intl.DateTimeFormat('en-CA', {
+      todayStr = new Intl.DateTimeFormat("en-CA", {
         timeZone: timezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       }).format(new Date());
     } catch (err) {
-      todayStr = new Date().toISOString().split('T')[0];
+      todayStr = new Date().toISOString().split("T")[0];
     }
 
     // 3. Validate that the request date matches today's date string
     if (date !== todayStr) {
-      throw new BadRequestError('Habit logs can only be toggled for today.');
+      throw new BadRequestError("Habit logs can only be toggled for today.");
     }
 
     // Verify owner of habit config first
     const { data: existingHabit, error: existError } = await supabase
-      .from('habits')
-      .select('id')
-      .eq('id', habitId)
-      .eq('user_id', userId)
+      .from("habits")
+      .select("id")
+      .eq("id", habitId)
+      .eq("user_id", userId)
       .single();
 
     if (existError || !existingHabit) {
-      throw new NotFoundError('Habit not found');
+      throw new NotFoundError("Habit not found");
     }
 
     const startOfDay = `${date}T00:00:00.000Z`;
@@ -275,18 +275,18 @@ export class HabitService {
     if (completed) {
       // 1. Check if check-in log already exists for this date
       const { data: existingLog } = await supabase
-        .from('habit_logs')
-        .select('id')
-        .eq('habit_id', habitId)
-        .eq('user_id', userId)
-        .gte('completed_at', startOfDay)
-        .lte('completed_at', endOfDay)
+        .from("habit_logs")
+        .select("id")
+        .eq("habit_id", habitId)
+        .eq("user_id", userId)
+        .gte("completed_at", startOfDay)
+        .lte("completed_at", endOfDay)
         .maybeSingle();
 
       if (!existingLog) {
         // Create new check-in row
         const { data, error } = await supabase
-          .from('habit_logs')
+          .from("habit_logs")
           .insert({
             habit_id: habitId,
             user_id: userId,
@@ -304,12 +304,12 @@ export class HabitService {
     } else {
       // 2. Uncheck: Delete the check-in log row for this date
       const { error } = await supabase
-        .from('habit_logs')
+        .from("habit_logs")
         .delete()
-        .eq('habit_id', habitId)
-        .eq('user_id', userId)
-        .gte('completed_at', startOfDay)
-        .lte('completed_at', endOfDay);
+        .eq("habit_id", habitId)
+        .eq("user_id", userId)
+        .gte("completed_at", startOfDay)
+        .lte("completed_at", endOfDay);
 
       if (error) {
         throw new AppError(`Failed to delete habit log: ${error.message}`, 400);

@@ -1,5 +1,5 @@
-import { AIPlanResponse, AIScheduleBlock } from '../providers/ai/ai.provider.js';
-import { logger } from './logger.js';
+import { AIPlanResponse, AIScheduleBlock } from "../providers/ai/ai.provider.js";
+import { logger } from "./logger.js";
 
 export class AIResponseValidator {
   /**
@@ -10,13 +10,15 @@ export class AIResponseValidator {
     dateStr: string,
     workingHoursStart?: string,
     workingHoursEnd?: string,
-    offsetStr?: string
+    offsetStr?: string,
   ): AIPlanResponse {
-    logger.warn(`AIResponseValidator: Falling back gracefully to baseline schedule for date ${dateStr}`);
+    logger.warn(
+      `AIResponseValidator: Falling back gracefully to baseline schedule for date ${dateStr}`,
+    );
 
-    const start = workingHoursStart || '09:00:00';
-    const end = workingHoursEnd || '17:00:00';
-    const offset = offsetStr || 'Z';
+    const start = workingHoursStart || "09:00:00";
+    const end = workingHoursEnd || "17:00:00";
+    const offset = offsetStr || "Z";
 
     const workStart = new Date(`${dateStr}T${start}${offset}`);
     const workEnd = new Date(`${dateStr}T${end}${offset}`);
@@ -29,11 +31,11 @@ export class AIResponseValidator {
 
     if (warmUpEnd.getTime() <= workEnd.getTime()) {
       baseSchedule.push({
-        label: 'Warm-up & Planning',
-        type: 'break',
+        label: "Warm-up & Planning",
+        type: "break",
         start_time: warmUpStart.toISOString(),
         end_time: warmUpEnd.toISOString(),
-        color: 'peach',
+        color: "peach",
       });
 
       // Add deep focus block
@@ -42,11 +44,11 @@ export class AIResponseValidator {
 
       if (focusEnd.getTime() <= workEnd.getTime()) {
         baseSchedule.push({
-          label: 'Deep Work · High Priority Task',
-          type: 'focus',
+          label: "Deep Work · High Priority Task",
+          type: "focus",
           start_time: focusStart.toISOString(),
           end_time: focusEnd.toISOString(),
-          color: 'lavender',
+          color: "lavender",
         });
 
         // Add break block
@@ -55,11 +57,11 @@ export class AIResponseValidator {
 
         if (breakEnd.getTime() <= workEnd.getTime()) {
           baseSchedule.push({
-            label: 'Rest & Hydration',
-            type: 'break',
+            label: "Rest & Hydration",
+            type: "break",
             start_time: breakStart.toISOString(),
             end_time: breakEnd.toISOString(),
-            color: 'peach',
+            color: "peach",
           });
 
           // Add secondary focus block
@@ -68,11 +70,11 @@ export class AIResponseValidator {
 
           if (focus2End.getTime() <= workEnd.getTime()) {
             baseSchedule.push({
-              label: 'Secondary Focus Segment',
-              type: 'focus',
+              label: "Secondary Focus Segment",
+              type: "focus",
               start_time: focus2Start.toISOString(),
               end_time: focus2End.toISOString(),
-              color: 'lavender',
+              color: "lavender",
             });
           }
         }
@@ -80,9 +82,9 @@ export class AIResponseValidator {
     }
 
     const baseRecommendations = [
-      'Your schedule was generated from a safe fallback baseline to maintain your daily focus flow within working hours.',
-      'Protected focus blocks are scheduled for early cognitive peaks.',
-      'Standard breaks are enforced following deep focus segments to prevent exhaustion.',
+      "Your schedule was generated from a safe fallback baseline to maintain your daily focus flow within working hours.",
+      "Protected focus blocks are scheduled for early cognitive peaks.",
+      "Standard breaks are enforced following deep focus segments to prevent exhaustion.",
     ];
 
     return {
@@ -95,24 +97,24 @@ export class AIResponseValidator {
    * Validates required properties inside generated blocks
    */
   private static validateRequiredFields(block: any): void {
-    const required = ['label', 'type', 'start_time', 'end_time', 'color'];
+    const required = ["label", "type", "start_time", "end_time", "color"];
     for (const field of required) {
       if (!block[field]) {
         throw new Error(`Missing required schedule block property: ${field}`);
       }
     }
 
-    const validTypes = ['focus', 'break', 'meeting', 'habit'];
+    const validTypes = ["focus", "break", "meeting", "habit"];
     // Remap 'routine' to 'break' for backwards compatibility with any cached AI outputs
-    if (block.type === 'routine') {
-      block.type = 'break';
+    if (block.type === "routine") {
+      block.type = "break";
     } else if (!validTypes.includes(block.type)) {
-      block.type = 'break'; // Safe fallback instead of throwing
+      block.type = "break"; // Safe fallback instead of throwing
     }
 
-    const validColors = ['lavender', 'mint', 'sky', 'peach'];
+    const validColors = ["lavender", "mint", "sky", "peach"];
     if (!validColors.includes(block.color)) {
-      block.color = 'lavender'; // Safe fallback instead of throwing
+      block.color = "lavender"; // Safe fallback instead of throwing
     }
   }
 
@@ -140,38 +142,44 @@ export class AIResponseValidator {
     workingHoursStart?: string,
     workingHoursEnd?: string,
     dateStr?: string,
-    offsetStr?: string
+    offsetStr?: string,
   ): AIPlanResponse {
-    if (!plan || typeof plan !== 'object') {
-      throw new Error('AI Planner returned an invalid plan structure');
+    if (!plan || typeof plan !== "object") {
+      throw new Error("AI Planner returned an invalid plan structure");
     }
 
     if (!Array.isArray(plan.schedule)) {
-      throw new Error('AI Planner schedule list must be an array');
+      throw new Error("AI Planner schedule list must be an array");
     }
 
     if (!Array.isArray(plan.recommendations)) {
-      throw new Error('AI Planner recommendations list must be an array');
+      throw new Error("AI Planner recommendations list must be an array");
     }
 
     // Standardize out-of-bounds start/end checks if workingHoursStart/workingHoursEnd are provided
     const padTime = (t: string) => {
-      if (!t) return '00:00:00';
-      const parts = t.split(':');
-      if (parts.length === 1) return `${parts[0].padStart(2, '0')}:00:00`;
-      if (parts.length === 2) return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:00`;
-      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}:${parts[2].padStart(2, '0')}`;
+      if (!t) return "00:00:00";
+      const parts = t.split(":");
+      if (parts.length === 1) return `${parts[0].padStart(2, "0")}:00:00`;
+      if (parts.length === 2) return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}:00`;
+      return `${parts[0].padStart(2, "0")}:${parts[1].padStart(2, "0")}:${parts[2].padStart(2, "0")}`;
     };
 
-    const offset = offsetStr || 'Z';
-    const workStart = workingHoursStart && dateStr ? new Date(`${dateStr}T${padTime(workingHoursStart)}${offset}`).getTime() : null;
-    const workEnd = workingHoursEnd && dateStr ? new Date(`${dateStr}T${padTime(workingHoursEnd)}${offset}`).getTime() : null;
+    const offset = offsetStr || "Z";
+    const workStart =
+      workingHoursStart && dateStr
+        ? new Date(`${dateStr}T${padTime(workingHoursStart)}${offset}`).getTime()
+        : null;
+    const workEnd =
+      workingHoursEnd && dateStr
+        ? new Date(`${dateStr}T${padTime(workingHoursEnd)}${offset}`).getTime()
+        : null;
 
     // 1. Audit individual blocks
     const validatedSchedule: AIScheduleBlock[] = [];
     for (const rawBlock of plan.schedule) {
       this.validateRequiredFields(rawBlock);
-      
+
       const block: AIScheduleBlock = {
         label: String(rawBlock.label),
         type: rawBlock.type,
@@ -186,11 +194,15 @@ export class AIResponseValidator {
       const blockEnd = new Date(block.end_time).getTime();
 
       if (workStart && blockStart < workStart) {
-        throw new Error(`Block '${block.label}' starts at ${block.start_time}, which is before the work start time of ${workingHoursStart}`);
+        throw new Error(
+          `Block '${block.label}' starts at ${block.start_time}, which is before the work start time of ${workingHoursStart}`,
+        );
       }
 
       if (workEnd && blockEnd > workEnd) {
-        throw new Error(`Block '${block.label}' ends at ${block.end_time}, which is after the work end time of ${workingHoursEnd}`);
+        throw new Error(
+          `Block '${block.label}' ends at ${block.end_time}, which is after the work end time of ${workingHoursEnd}`,
+        );
       }
 
       validatedSchedule.push(block);
@@ -199,7 +211,7 @@ export class AIResponseValidator {
     // 2. Validate Overlaps
     // Sort timeline chronologically
     const sorted = [...validatedSchedule].sort(
-      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
     );
 
     for (let i = 1; i < sorted.length; i++) {
@@ -211,7 +223,7 @@ export class AIResponseValidator {
 
       if (currStart < prevEnd) {
         throw new Error(
-          `Overlapping timeline blocks identified: '${prev.label}' ends at ${prev.end_time} but '${curr.label}' starts at ${curr.start_time}`
+          `Overlapping timeline blocks identified: '${prev.label}' ends at ${prev.end_time} but '${curr.label}' starts at ${curr.start_time}`,
         );
       }
     }

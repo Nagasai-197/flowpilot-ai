@@ -1,9 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Zap, Coffee, Brain, Calendar, Loader2, Plus, Trash2, X, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import {
+  Sparkles,
+  Zap,
+  Coffee,
+  Brain,
+  Calendar,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+  AlertCircle,
+} from "lucide-react";
+import { useState, useEffect } from "react";
 import { usePlanner, ScheduleBlock } from "../hooks/usePlanner";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   closestCenter,
@@ -68,20 +80,25 @@ const getDuration = (startIso: string, endIso: string) => {
 interface SortableBlockItemProps {
   b: ScheduleBlock;
   i: number;
+  isCompleted: boolean;
+  onToggleComplete: (id: string) => void;
   onEdit: (block: ScheduleBlock) => void;
   onRegenerate: (id: string) => void;
   isRegenerating: boolean;
 }
 
-function SortableBlockItem({ b, i, onEdit, onRegenerate, isRegenerating }: SortableBlockItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: b.id });
+function SortableBlockItem({
+  b,
+  i,
+  isCompleted,
+  onToggleComplete,
+  onEdit,
+  onRegenerate,
+  isRegenerating,
+}: SortableBlockItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: b.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -92,6 +109,28 @@ function SortableBlockItem({ b, i, onEdit, onRegenerate, isRegenerating }: Sorta
 
   const Icon = TYPE_ICONS[b.type] || Zap;
   const blockDuration = getDuration(b.start_time, b.end_time);
+
+  // Energy impact text
+  const energyImpact =
+    b.type === "focus"
+      ? {
+          text: "-15% energy drain",
+          style: "text-red-500 bg-red-500/5 dark:bg-red-500/10 border-red-500/10",
+        }
+      : b.type === "break"
+        ? {
+            text: "+20% energy recovery",
+            style: "text-emerald-500 bg-emerald-500/5 dark:bg-emerald-500/10 border-emerald-500/10",
+          }
+        : b.type === "habit" || b.type === "routine"
+          ? {
+              text: "+10% energy stabilization",
+              style: "text-amber-500 bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/10",
+            }
+          : {
+              text: "-5% energy drain",
+              style: "text-indigo-500 bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/10",
+            };
 
   return (
     <div
@@ -117,18 +156,49 @@ function SortableBlockItem({ b, i, onEdit, onRegenerate, isRegenerating }: Sorta
       />
 
       <div
-        className="flex-1 rounded-2xl border border-border/60 p-4 transition-all hover:shadow-soft flex items-center justify-between"
-        style={{ background: `color-mix(in oklab, var(--${b.color || "lavender"}) 18%, var(--card))` }}
+        className={cn(
+          "flex-1 rounded-2xl border border-border/60 p-4 transition-all hover:shadow-soft flex items-center justify-between",
+          isCompleted && "opacity-60",
+        )}
+        style={{
+          background: `color-mix(in oklab, var(--${b.color || "lavender"}) 18%, var(--card))`,
+        }}
       >
-        <div onClick={() => onEdit(b)} className="flex-1 cursor-pointer pr-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <Icon className="h-4 w-4 text-foreground/85" /> {b.label}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <input
+            type="checkbox"
+            checked={isCompleted}
+            onPointerDown={(e) => e.stopPropagation()}
+            onChange={() => onToggleComplete(b.id)}
+            className="rounded border-border text-primary outline-none accent-primary shrink-0 cursor-pointer h-4 w-4"
+          />
+          <div
+            onClick={() => onEdit(b)}
+            className="flex-1 cursor-pointer pr-4 min-w-0"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div
+              className={cn(
+                "flex items-center gap-2 text-sm font-medium text-foreground truncate",
+                isCompleted && "line-through text-muted-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 text-foreground/85 shrink-0" /> {b.label}
+            </div>
+            <div className="mt-1 flex items-center gap-2 text-[10px] font-semibold">
+              <span className="text-muted-foreground/80">{blockDuration} min</span>
+              <span className={cn("px-1.5 py-0.5 rounded border", energyImpact.style)}>
+                {energyImpact.text}
+              </span>
+            </div>
           </div>
-          <div className="mt-1 text-xs text-muted-foreground/80">{blockDuration} min</div>
         </div>
 
         {/* Quick actions on hover */}
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+        <div
+          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {b.type === "focus" && (
             <button
               onClick={(e) => {
@@ -170,9 +240,31 @@ function Planner() {
   const tomorrowStr = tomorrowObj.toISOString().split("T")[0];
 
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
-  
+
+  // Persisted client-side completion status for scheduled blocks
+  const [completedBlockIds, setCompletedBlockIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(`completed_blocks_${selectedDate}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`completed_blocks_${selectedDate}`, JSON.stringify(completedBlockIds));
+  }, [completedBlockIds, selectedDate]);
+
+  const handleToggleComplete = (id: string) => {
+    setCompletedBlockIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
   // Custom states for single-block AI optimization
-  const [rationaleData, setRationaleData] = useState<{ title: string; rationale: string } | null>(null);
+  const [rationaleData, setRationaleData] = useState<{ title: string; rationale: string } | null>(
+    null,
+  );
   const [activeRegeneratingId, setActiveRegeneratingId] = useState<string | null>(null);
 
   // Modal editing & creation states
@@ -242,7 +334,7 @@ function Planner() {
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -267,31 +359,38 @@ function Planner() {
           loading: "Reordering chronological time slots...",
           success: "Planner schedule swapped successfully! 🔄",
           error: "Failed to reorder planner slots.",
-        }
+        },
       );
     }
   };
 
   const handleGenerate = () => {
-    const prefDeepWork = localStorage.getItem("pref_deep_work") ? parseInt(localStorage.getItem("pref_deep_work")!) : 90;
-    const prefBreak = localStorage.getItem("pref_break") ? parseInt(localStorage.getItem("pref_break")!) : 15;
+    const prefDeepWork = localStorage.getItem("pref_deep_work")
+      ? parseInt(localStorage.getItem("pref_deep_work")!)
+      : 90;
+    const prefBreak = localStorage.getItem("pref_break")
+      ? parseInt(localStorage.getItem("pref_break")!)
+      : 15;
 
     toast.promise(
       new Promise((resolve, reject) => {
-        generatePlan({
-          targetDate: selectedDate,
-          preferredDeepWorkDuration: prefDeepWork,
-          breakDuration: prefBreak,
-        }, {
-          onSuccess: () => resolve("Plan updated"),
-          onError: (err) => reject(err),
-        });
+        generatePlan(
+          {
+            targetDate: selectedDate,
+            preferredDeepWorkDuration: prefDeepWork,
+            breakDuration: prefBreak,
+          },
+          {
+            onSuccess: () => resolve("Plan updated"),
+            onError: (err) => reject(err),
+          },
+        );
       }),
       {
         loading: `Generating customized AI schedule for ${selectedDate === todayStr ? "today" : "tomorrow"}...`,
         success: "Schedule auto-balanced successfully! 📅",
         error: "Failed to optimize schedule.",
-      }
+      },
     );
   };
 
@@ -366,32 +465,33 @@ function Planner() {
 
   const handleRegenerateBlock = async (id: string) => {
     setActiveRegeneratingId(id);
-    toast.promise(
-      new Promise(async (resolve, reject) => {
-        try {
-          const res = await regenerateBlock(id);
-          setRationaleData({
-            title: res.data.block.title,
-            rationale: res.data.rationale,
-          });
-          resolve(res);
-        } catch (err) {
-          reject(err);
-        } finally {
-          setActiveRegeneratingId(null);
-        }
-      }),
-      {
-        loading: "FlowPilot AI is optimizing slot with cognitive psychology...",
-        success: "Cognitive focus block balanced successfully! 🧠",
-        error: "AI optimization failed.",
+    const runRegen = async () => {
+      try {
+        const res = await regenerateBlock(id);
+        setRationaleData({
+          title: res.data.block.title,
+          rationale: res.data.rationale,
+        });
+        return res;
+      } finally {
+        setActiveRegeneratingId(null);
       }
-    );
+    };
+
+    toast.promise(runRegen(), {
+      loading: "FlowPilot AI is optimizing slot with cognitive psychology...",
+      success: "Cognitive focus block balanced successfully! 🧠",
+      error: "AI optimization failed.",
+    });
   };
 
   // Dynamic statistics calculations
   const focusTimeMin = schedule
     .filter((b) => b.type === "focus")
+    .reduce((sum, b) => sum + getDuration(b.start_time, b.end_time), 0);
+
+  const completedFocusTimeMin = schedule
+    .filter((b) => b.type === "focus" && completedBlockIds.includes(b.id))
     .reduce((sum, b) => sum + getDuration(b.start_time, b.end_time), 0);
 
   const breakTimeMin = schedule
@@ -402,16 +502,61 @@ function Planner() {
   const focusMins = focusTimeMin % 60;
   const focusTimeStr = focusTimeMin > 0 ? `${focusHrs}h ${focusMins}m` : "0h";
 
-  const totalActiveMin = focusTimeMin + breakTimeMin;
-  const breakRatio = totalActiveMin > 0 ? Math.round((breakTimeMin / totalActiveMin) * 100) : 0;
+  const completedFocusHrs = Math.floor(completedFocusTimeMin / 60);
+  const completedFocusMins = completedFocusTimeMin % 60;
+  const completedFocusStr =
+    completedFocusTimeMin > 0 ? `${completedFocusHrs}h ${completedFocusMins}m` : "0h";
 
-  const focusCount = schedule.filter((b) => b.type === "focus").length;
-  const cognitiveLoad = focusCount <= 2 ? "Light" : focusCount <= 4 ? "Moderate" : "High";
+  const totalPlannedBlocks = schedule.length;
+  const completedPlannedBlocks = schedule.filter((b) => completedBlockIds.includes(b.id)).length;
+  const adherencePercent =
+    totalPlannedBlocks > 0 ? Math.round((completedPlannedBlocks / totalPlannedBlocks) * 100) : 0;
+
+  const calculateEnergyLevel = () => {
+    let energy = 80; // Starting baseline
+    const sorted = [...schedule].sort((a, b) => a.start_time.localeCompare(b.start_time));
+    for (const b of sorted) {
+      if (b.type === "focus") {
+        const duration = getDuration(b.start_time, b.end_time);
+        energy -= Math.round((duration / 60) * 15);
+      } else if (b.type === "break") {
+        energy += 20;
+      } else if (b.type === "habit" || b.type === "routine") {
+        energy += 10;
+      } else {
+        energy -= 5;
+      }
+      energy = Math.max(5, Math.min(100, energy));
+    }
+    return energy;
+  };
+  const cognitiveBattery = calculateEnergyLevel();
 
   const stats = [
-    { l: "Focus time", v: focusTimeStr, d: "of 5h daily target", c: "lavender", pct: Math.min(100, Math.round((focusTimeMin / 300) * 100)) },
-    { l: "Break ratio", v: `${breakRatio}%`, d: breakRatio >= 15 ? "Balanced ratio" : "Needs rest blocks", c: "mint", pct: Math.min(100, breakRatio * 4) },
-    { l: "Cognitive load", v: cognitiveLoad, d: "AI Optimized Load", c: "sky", pct: focusCount * 20 },
+    {
+      l: "Focus Target",
+      v: `${completedFocusStr} / ${focusTimeStr}`,
+      d: `${Math.min(100, Math.round((completedFocusTimeMin / (focusTimeMin || 1)) * 100))}% focus completed`,
+      c: "lavender",
+      pct: Math.min(100, Math.round((completedFocusTimeMin / (focusTimeMin || 1)) * 100)),
+    },
+    {
+      l: "Plan Adherence",
+      v: `${adherencePercent}%`,
+      d:
+        totalPlannedBlocks > 0
+          ? `${completedPlannedBlocks} of ${totalPlannedBlocks} blocks done`
+          : "No blocks planned",
+      c: "mint",
+      pct: adherencePercent,
+    },
+    {
+      l: "Cognitive Battery",
+      v: `${cognitiveBattery}%`,
+      d: cognitiveBattery >= 50 ? "🔋 Balanced Energy" : "⚠️ Schedule a Break Block!",
+      c: "sky",
+      pct: cognitiveBattery,
+    },
   ];
 
   if (isLoading) {
@@ -419,7 +564,9 @@ function Planner() {
       <div className="flex h-96 items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground animate-pulse">Orchestrating daily focus blocks...</p>
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Orchestrating daily focus blocks...
+          </p>
         </div>
       </div>
     );
@@ -438,7 +585,9 @@ function Planner() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl">AI Planner</h1>
-          <p className="text-sm text-muted-foreground">Adaptive scheduling, optimized for your rhythm.</p>
+          <p className="text-sm text-muted-foreground">
+            Adaptive scheduling, optimized for your rhythm.
+          </p>
         </div>
 
         {/* Date Selector Tabs */}
@@ -496,9 +645,14 @@ function Planner() {
           <div key={s.l} className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.l}</div>
             <div className="mt-2 font-display text-3xl">{s.v}</div>
-            <div className="mt-1 text-xs" style={{ color: `oklch(0.4 0.06 280)` }}>{s.d}</div>
+            <div className="mt-1 text-xs" style={{ color: `oklch(0.4 0.06 280)` }}>
+              {s.d}
+            </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${s.pct}%`, background: `var(--${s.c})` }} />
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${s.pct}%`, background: `var(--${s.c})` }}
+              />
             </div>
           </div>
         ))}
@@ -528,8 +682,12 @@ function Planner() {
               <div className="text-xs font-semibold text-primary uppercase tracking-wide flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 animate-pulse" /> Cognitive Science Rationale
               </div>
-              <h4 className="text-sm font-semibold text-foreground">Optimized: {rationaleData.title}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">{rationaleData.rationale}</p>
+              <h4 className="text-sm font-semibold text-foreground">
+                Optimized: {rationaleData.title}
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {rationaleData.rationale}
+              </p>
             </div>
           </motion.div>
         )}
@@ -554,7 +712,9 @@ function Planner() {
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Sparkles className="h-8 w-8 text-primary animate-pulse mb-3" />
             <h3 className="font-semibold text-base">Your timeline is empty</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-xs">Generate your first AI plan to organize your day.</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+              Generate your first AI plan to organize your day.
+            </p>
             <button
               onClick={handleGenerate}
               className="mt-4 inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-xl bg-foreground text-background hover:opacity-90 cursor-pointer transition-all"
@@ -581,6 +741,8 @@ function Planner() {
                       key={b.id}
                       b={b}
                       i={i}
+                      isCompleted={completedBlockIds.includes(b.id)}
+                      onToggleComplete={handleToggleComplete}
                       onEdit={openEditModal}
                       onRegenerate={handleRegenerateBlock}
                       isRegenerating={activeRegeneratingId === b.id}
@@ -727,7 +889,9 @@ function Planner() {
                         key={c.name}
                         type="button"
                         onClick={() => setFormColor(c.name as any)}
-                        style={{ background: `color-mix(in oklab, var(--${c.name}) 30%, var(--card))` }}
+                        style={{
+                          background: `color-mix(in oklab, var(--${c.name}) 30%, var(--card))`,
+                        }}
                         className={`flex-1 rounded-xl py-2 text-[10px] font-semibold text-foreground border cursor-pointer transition-all ${
                           formColor === c.name
                             ? "border-primary scale-105"

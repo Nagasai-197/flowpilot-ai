@@ -23,19 +23,19 @@ export const analyticsConfig: AnalyticsConfig = {
     factors: {
       taskCompletion: {
         weight: 0.6,
-        description: 'Percentage of completed tasks in the last 7 days (60% weight)',
+        description: "Percentage of completed tasks in the last 7 days (60% weight)",
       },
       habitCheckIn: {
         weight: 0.4,
-        description: 'Percentage of completed habits in the last 7 days (40% weight)',
+        description: "Percentage of completed habits in the last 7 days (40% weight)",
       },
       focusTime: {
         weight: 0.0, // Future addition: 0.0 weight implies it does not affect scores yet
-        description: 'Ratio of deep work hours relative to target focus duration',
+        description: "Ratio of deep work hours relative to target focus duration",
       },
       plannerAdherence: {
         weight: 0.0, // Future addition: 0.0 weight implies it does not affect scores yet
-        description: 'Percentage of scheduled planner focus blocks successfully executed',
+        description: "Percentage of scheduled planner focus blocks successfully executed",
       },
     },
     thresholds: {

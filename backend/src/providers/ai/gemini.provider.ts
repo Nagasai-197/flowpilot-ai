@@ -1,13 +1,19 @@
-import { AIProvider, AIPlanRequest, AIPlanResponse, AIAssistantRequest, AIAssistantResponse } from './ai.provider.js';
-import { config } from '../../config/index.js';
-import { AppError } from '../../utils/errors.js';
-import { logger } from '../../utils/logger.js';
+import {
+  AIProvider,
+  AIPlanRequest,
+  AIPlanResponse,
+  AIAssistantRequest,
+  AIAssistantResponse,
+} from "./ai.provider.js";
+import { config } from "../../config/index.js";
+import { AppError } from "../../utils/errors.js";
+import { logger } from "../../utils/logger.js";
 
 // ─── Model Config ────────────────────────────────────────────────────────────
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite-preview-05-20';
+const PRIMARY_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-2.5-flash-lite-preview-05-20";
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** Max ms to wait for a single model attempt before aborting and trying fallback */
 const REQUEST_TIMEOUT_MS = 10_000; // 10 seconds (optimized for Vercel Hobby execution limits)
@@ -22,11 +28,7 @@ const FALLBACK_ON_STATUS = new Set([429, 503]);
  * Returns the parsed JSON response body on success.
  * Throws AppError on all failure paths so Express error handler catches it.
  */
-async function callGemini(
-  apiKey: string,
-  method: string,
-  payload: object
-): Promise<any> {
+async function callGemini(apiKey: string, method: string, payload: object): Promise<any> {
   const endpoints = [
     `${GEMINI_BASE}/${PRIMARY_MODEL}:${method}?key=${apiKey}`,
     `${GEMINI_BASE}/${FALLBACK_MODEL}:${method}?key=${apiKey}`,
@@ -45,13 +47,13 @@ async function callGemini(
     let response: Response;
     try {
       response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
     } catch (networkErr: any) {
-      const isTimeout = networkErr.name === 'AbortError' || networkErr.name === 'TimeoutError';
+      const isTimeout = networkErr.name === "AbortError" || networkErr.name === "TimeoutError";
       const msg = isTimeout
         ? `Gemini request timed out after ${REQUEST_TIMEOUT_MS / 1000}s (${model})`
         : `Gemini network error (${model}): ${networkErr.message}`;
@@ -79,7 +81,9 @@ async function callGemini(
     logger.error(`Gemini API Error [${model}] Status ${response.status} - ${errorBody}`);
 
     if (FALLBACK_ON_STATUS.has(response.status) && i === 0) {
-      logger.warn(`Gemini primary unavailable (${response.status}). Retrying with ${FALLBACK_MODEL}...`);
+      logger.warn(
+        `Gemini primary unavailable (${response.status}). Retrying with ${FALLBACK_MODEL}...`,
+      );
       lastError = new AppError(`AI API request failed: Status ${response.status}`, 502);
       continue; // try fallback
     }
@@ -88,22 +92,21 @@ async function callGemini(
     throw new AppError(`AI API request failed: Status ${response.status}`, 502);
   }
 
-  throw lastError ?? new AppError('All Gemini model endpoints failed', 502);
+  throw lastError ?? new AppError("All Gemini model endpoints failed", 502);
 }
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 export class GeminiProvider implements AIProvider {
-
   // ── Schedule Plan ──────────────────────────────────────────────────────────
   async generateSchedulePlan(request: AIPlanRequest): Promise<AIPlanResponse> {
     const apiKey = config.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'placeholder-gemini-key') {
-      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    if (!apiKey || apiKey === "placeholder-gemini-key") {
+      throw new AppError("Gemini API Key is unconfigured or invalid", 500);
     }
 
     const deepWorkMin = request.preferredDeepWorkDuration ?? 90;
     const breakMin = request.breakDuration ?? 15;
-    const offset = request.offsetStr || 'Z';
+    const offset = request.offsetStr || "Z";
 
     const promptText = `
 You are FlowPilot's scientifically backed cognitive scheduling engine.
@@ -112,13 +115,25 @@ Date: ${request.dateStr}. Working Hours: ${request.workingHoursStart} to ${reque
 Preferred Deep Work Duration: ${deepWorkMin} minutes. Preferred Break Duration: ${breakMin} minutes.
 
 HIGH PRIORITY TASKS (schedule FIRST, in ${deepWorkMin} min deep work blocks during morning peak):
-${JSON.stringify(request.tasks.filter((t: any) => t.priority === 'high'), null, 2)}
+${JSON.stringify(
+  request.tasks.filter((t: any) => t.priority === "high"),
+  null,
+  2,
+)}
 
 MEDIUM PRIORITY TASKS (schedule after high-priority blocks):
-${JSON.stringify(request.tasks.filter((t: any) => t.priority === 'med' || t.priority === 'medium'), null, 2)}
+${JSON.stringify(
+  request.tasks.filter((t: any) => t.priority === "med" || t.priority === "medium"),
+  null,
+  2,
+)}
 
 LOW PRIORITY TASKS (fill remaining slots):
-${JSON.stringify(request.tasks.filter((t: any) => t.priority === 'low'), null, 2)}
+${JSON.stringify(
+  request.tasks.filter((t: any) => t.priority === "low"),
+  null,
+  2,
+)}
 
 HABITS TO SLOT (morning/evening routine slots):
 ${JSON.stringify(request.habits, null, 2)}
@@ -152,40 +167,40 @@ Schema:
         },
       ],
       generationConfig: {
-        responseMimeType: 'application/json',
+        responseMimeType: "application/json",
         responseSchema: {
-          type: 'OBJECT',
+          type: "OBJECT",
           properties: {
             schedule: {
-              type: 'ARRAY',
+              type: "ARRAY",
               items: {
-                type: 'OBJECT',
+                type: "OBJECT",
                 properties: {
-                  label: { type: 'STRING' },
-                  type: { type: 'STRING', enum: ['focus', 'break', 'meeting', 'habit'] },
-                  start_time: { type: 'STRING' },
-                  end_time: { type: 'STRING' },
-                  color: { type: 'STRING', enum: ['lavender', 'mint', 'sky', 'peach'] },
+                  label: { type: "STRING" },
+                  type: { type: "STRING", enum: ["focus", "break", "meeting", "habit"] },
+                  start_time: { type: "STRING" },
+                  end_time: { type: "STRING" },
+                  color: { type: "STRING", enum: ["lavender", "mint", "sky", "peach"] },
                 },
-                required: ['label', 'type', 'start_time', 'end_time', 'color'],
+                required: ["label", "type", "start_time", "end_time", "color"],
               },
             },
             recommendations: {
-              type: 'ARRAY',
-              items: { type: 'STRING' },
+              type: "ARRAY",
+              items: { type: "STRING" },
             },
           },
-          required: ['schedule', 'recommendations'],
+          required: ["schedule", "recommendations"],
         },
       },
     };
 
     try {
-      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const resData = await callGemini(apiKey, "generateContent", payload);
       const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) {
-        throw new AppError('Gemini API returned an empty generation response candidate', 502);
+        throw new AppError("Gemini API returned an empty generation response candidate", 502);
       }
 
       const plan: AIPlanResponse = JSON.parse(rawText);
@@ -200,8 +215,8 @@ Schema:
   // ── AI Assistant ───────────────────────────────────────────────────────────
   async askAssistant(request: AIAssistantRequest): Promise<AIAssistantResponse> {
     const apiKey = config.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'placeholder-gemini-key') {
-      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    if (!apiKey || apiKey === "placeholder-gemini-key") {
+      throw new AppError("Gemini API Key is unconfigured or invalid", 500);
     }
 
     const systemPrompt = `
@@ -212,7 +227,7 @@ Tasks Summary: ${request.context.tasksSummary}
 Habits Summary: ${request.context.habitsSummary}
 Today's Schedule: ${request.context.scheduleSummary}
 Performance Stats: ${request.context.analyticsSummary}
-Active Goals: ${(request.context as any).goalsSummary || 'No goals set yet.'}
+Active Goals: ${(request.context as any).goalsSummary || "No goals set yet."}
 Working Hours: ${request.context.workingHours}
 
 === BEHAVIOR RULES (STRICTLY FOLLOW) ===
@@ -240,57 +255,73 @@ Return valid JSON matching exactly:
 
     // Inject system instructions as first turn user prompt to force bounds
     contents.push({
-      role: 'user',
-      parts: [{ text: systemPrompt }]
+      role: "user",
+      parts: [{ text: systemPrompt }],
     });
 
     contents.push({
-      role: 'model',
-      parts: [{ text: "Understood. I have locked in all the user context summaries, active tasks ratios, habit streaks, and schedule blocks. I am ready to assist as their calm productivity co-pilot." }]
+      role: "model",
+      parts: [
+        {
+          text: "Understood. I have locked in all the user context summaries, active tasks ratios, habit streaks, and schedule blocks. I am ready to assist as their calm productivity co-pilot.",
+        },
+      ],
     });
 
     // Append standard history
     request.history.forEach((h) => {
       contents.push({
-        role: (h.role as string) === 'ai' ? 'model' : h.role,
-        parts: h.parts
+        role: (h.role as string) === "ai" ? "model" : h.role,
+        parts: h.parts,
       });
     });
 
     // Append current message
     contents.push({
-      role: 'user',
-      parts: [{ text: request.message }]
+      role: "user",
+      parts: [{ text: request.message }],
     });
 
     const payload = {
       contents,
       generationConfig: {
-        responseMimeType: 'application/json',
+        responseMimeType: "application/json",
         responseSchema: {
-          type: 'OBJECT',
+          type: "OBJECT",
           properties: {
-            text: { type: 'STRING' },
+            text: { type: "STRING" },
             action: {
-              type: 'OBJECT',
+              type: "OBJECT",
               properties: {
-                type: { type: 'STRING', enum: ['regenerate_plan', 'reschedule_plan', 'create_task', 'delete_task', 'complete_task', 'create_goal', 'toggle_habit', 'none'] },
-                payload: { type: 'OBJECT' }
+                type: {
+                  type: "STRING",
+                  enum: [
+                    "regenerate_plan",
+                    "reschedule_plan",
+                    "create_task",
+                    "delete_task",
+                    "complete_task",
+                    "create_goal",
+                    "toggle_habit",
+                    "none",
+                  ],
+                },
+                payload: { type: "OBJECT" },
               },
-              required: ['type']
-            }
+              required: ["type"],
+            },
           },
-          required: ['text', 'action']
-        }
-      }
+          required: ["text", "action"],
+        },
+      },
     };
 
     try {
-      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const resData = await callGemini(apiKey, "generateContent", payload);
       const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) {
-        throw new AppError('Gemini Assistant returned an empty generation response candidate', 502);
+        throw new AppError("Gemini Assistant returned an empty generation response candidate", 502);
       }
 
       const reply: AIAssistantResponse = JSON.parse(rawText);
@@ -305,21 +336,21 @@ Return valid JSON matching exactly:
   // ── AI Goal Roadmap Generation ─────────────────────────────────────────────
   async generateGoalRoadmap(
     goalTitle: string,
-    goalDescription?: string
+    goalDescription?: string,
   ): Promise<{ milestones: { title: string; completed: boolean }[] }> {
     const apiKey = config.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'placeholder-gemini-key') {
-      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    if (!apiKey || apiKey === "placeholder-gemini-key") {
+      throw new AppError("Gemini API Key is unconfigured or invalid", 500);
     }
 
     const promptText = `
 You are FlowPilot's AI Goal Strategist.
 The user wants to achieve the following goal: "${goalTitle}".
-${goalDescription ? `Goal Description: "${goalDescription}"` : ''}
+${goalDescription ? `Goal Description: "${goalDescription}"` : ""}
 
 Your job is to:
 1. Analyze this goal.
-2. Generate a highly structured, chronological roadmap consisting of exactly 5 to 7 actionable, high-impact milestones that lead to successfully achieving the goal.
+2. Generate a highly structured, chronological roadmap consisting of exactly 5 to 10 actionable, high-impact milestones that lead to successfully achieving the goal.
 3. Keep titles clear, concise, and professional (e.g., "Learn Linux Basics", "Apply for Jobs").
 4. Return a JSON array of milestones. Each milestone must have a "title" string and "completed" boolean set to false.
 
@@ -339,33 +370,33 @@ Schema:
         },
       ],
       generationConfig: {
-        responseMimeType: 'application/json',
+        responseMimeType: "application/json",
         responseSchema: {
-          type: 'OBJECT',
+          type: "OBJECT",
           properties: {
             milestones: {
-              type: 'ARRAY',
+              type: "ARRAY",
               items: {
-                type: 'OBJECT',
+                type: "OBJECT",
                 properties: {
-                  title: { type: 'STRING' },
-                  completed: { type: 'BOOLEAN' },
+                  title: { type: "STRING" },
+                  completed: { type: "BOOLEAN" },
                 },
-                required: ['title', 'completed'],
+                required: ["title", "completed"],
               },
             },
           },
-          required: ['milestones'],
+          required: ["milestones"],
         },
       },
     };
 
     try {
-      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const resData = await callGemini(apiKey, "generateContent", payload);
       const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) {
-        throw new AppError('Gemini Goal Roadmap returned empty response', 502);
+        throw new AppError("Gemini Goal Roadmap returned empty response", 502);
       }
 
       return JSON.parse(rawText);
@@ -379,11 +410,11 @@ Schema:
   async regenerateSingleBlock(
     blockTitle: string,
     blockType: string,
-    durationMinutes: number
+    durationMinutes: number,
   ): Promise<{ title: string; block_type: string; color: string; rationale: string }> {
     const apiKey = config.GEMINI_API_KEY;
-    if (!apiKey || apiKey === 'placeholder-gemini-key') {
-      throw new AppError('Gemini API Key is unconfigured or invalid', 500);
+    if (!apiKey || apiKey === "placeholder-gemini-key") {
+      throw new AppError("Gemini API Key is unconfigured or invalid", 500);
     }
 
     const promptText = `
@@ -414,26 +445,26 @@ Schema:
         },
       ],
       generationConfig: {
-        responseMimeType: 'application/json',
+        responseMimeType: "application/json",
         responseSchema: {
-          type: 'OBJECT',
+          type: "OBJECT",
           properties: {
-            title: { type: 'STRING' },
-            block_type: { type: 'STRING', enum: ['focus', 'break', 'meeting', 'habit'] },
-            color: { type: 'STRING', enum: ['lavender', 'mint', 'sky', 'peach'] },
-            rationale: { type: 'STRING' },
+            title: { type: "STRING" },
+            block_type: { type: "STRING", enum: ["focus", "break", "meeting", "habit"] },
+            color: { type: "STRING", enum: ["lavender", "mint", "sky", "peach"] },
+            rationale: { type: "STRING" },
           },
-          required: ['title', 'block_type', 'color', 'rationale'],
+          required: ["title", "block_type", "color", "rationale"],
         },
       },
     };
 
     try {
-      const resData = await callGemini(apiKey, 'generateContent', payload);
+      const resData = await callGemini(apiKey, "generateContent", payload);
       const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!rawText) {
-        throw new AppError('Gemini Single Block regeneration returned empty response', 502);
+        throw new AppError("Gemini Single Block regeneration returned empty response", 502);
       }
 
       return JSON.parse(rawText);

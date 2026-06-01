@@ -1,6 +1,6 @@
-import { Request, Response, NextFunction } from 'express';
-import { PlannerService } from '../services/planner.service.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { PlannerService } from "../services/planner.service.js";
+import { UnauthorizedError } from "../utils/errors.js";
 
 export class PlannerController {
   /**
@@ -20,11 +20,11 @@ export class PlannerController {
         date,
         preferredDeepWorkDuration,
         breakDuration,
-        currentTime
+        currentTime,
       );
       res.status(200).json({
-        status: 'success',
-        message: 'Optimized schedule plan generated successfully',
+        status: "success",
+        message: "Optimized schedule plan generated successfully",
         data: plan,
       });
     } catch (err) {
@@ -46,7 +46,7 @@ export class PlannerController {
     try {
       const plan = await PlannerService.getCurrentPlanForUser(userId, date as string);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: plan,
       });
     } catch (err) {
@@ -66,7 +66,7 @@ export class PlannerController {
     try {
       const block = await PlannerService.createBlockForUser(userId, req.body);
       res.status(201).json({
-        status: 'success',
+        status: "success",
         data: { block },
       });
     } catch (err) {
@@ -88,7 +88,7 @@ export class PlannerController {
     try {
       const block = await PlannerService.updateBlockForUser(id, userId, req.body);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: { block },
       });
     } catch (err) {
@@ -110,8 +110,8 @@ export class PlannerController {
     try {
       await PlannerService.deleteBlockForUser(id, userId);
       res.status(200).json({
-        status: 'success',
-        message: 'Block deleted successfully',
+        status: "success",
+        message: "Block deleted successfully",
       });
     } catch (err) {
       next(err);
@@ -132,7 +132,7 @@ export class PlannerController {
     try {
       const result = await PlannerService.regenerateBlockForUser(id, userId);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: result,
       });
     } catch (err) {

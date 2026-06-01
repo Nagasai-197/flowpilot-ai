@@ -1,7 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { NotificationService } from '../services/notification.service.js';
-import { NotificationRuleEngine } from '../services/notificationRuleEngine.js';
-import { UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { NotificationService } from "../services/notification.service.js";
+import { NotificationRuleEngine } from "../services/notificationRuleEngine.js";
+import { UnauthorizedError } from "../utils/errors.js";
 
 export class NotificationController {
   /**
@@ -18,7 +18,7 @@ export class NotificationController {
       const unreadCount = await NotificationService.getUnreadCountForUser(userId);
 
       res.status(200).json({
-        status: 'success',
+        status: "success",
         unreadCount,
         results: notifications.length,
         data: {
@@ -44,7 +44,7 @@ export class NotificationController {
     try {
       const notification = await NotificationService.markAsReadForUser(id, userId);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           notification,
         },
@@ -68,8 +68,8 @@ export class NotificationController {
     try {
       await NotificationService.deleteNotificationForUser(id, userId);
       res.status(200).json({
-        status: 'success',
-        message: 'Notification deleted successfully',
+        status: "success",
+        message: "Notification deleted successfully",
       });
     } catch (err) {
       next(err);
@@ -88,8 +88,8 @@ export class NotificationController {
     try {
       await NotificationService.clearAllForUser(userId);
       res.status(200).json({
-        status: 'success',
-        message: 'All notifications cleared successfully',
+        status: "success",
+        message: "All notifications cleared successfully",
       });
     } catch (err) {
       next(err);
@@ -100,7 +100,11 @@ export class NotificationController {
    * Runs the notification rule engine for the authenticated user
    * and returns a count of newly generated notifications.
    */
-  static async generateNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
+  static async generateNotifications(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const userId = req.user?.id;
     if (!userId) {
       return next(new UnauthorizedError());
@@ -109,7 +113,7 @@ export class NotificationController {
     try {
       const result = await NotificationRuleEngine.runForUser(userId);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         message: `Notification scan complete. ${result.generated} new notification(s) generated.`,
         data: result,
       });

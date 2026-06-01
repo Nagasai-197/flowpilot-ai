@@ -1,4 +1,10 @@
-import { createFileRoute, Outlet, useRouterState, useNavigate, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useRouterState,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
@@ -12,14 +18,12 @@ import { supabase } from "../lib/supabase";
 
 const titles: Record<string, string> = {
   "/app/dashboard": "Dashboard",
-  "/app/tasks": "Tasks",
   "/app/goals": "Goals",
   "/app/planner": "AI Planner",
-  "/app/analytics": "Analytics",
-  "/app/assistant": "AI Assistant",
-  "/app/habits": "Habits",
-  "/app/calendar": "Calendar",
-  "/app/notifications": "Notifications",
+  "/app/tasks": "Tasks",
+  "/app/progress": "Progress",
+  "/app/coach": "AI Coach",
+  "/app/review": "Review Reflection",
   "/app/settings": "Settings",
 };
 
@@ -28,7 +32,9 @@ export const Route = createFileRoute("/app")({
     if (typeof window === "undefined") {
       return;
     }
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       throw redirect({ to: "/login" });
     }
@@ -91,7 +97,9 @@ function AppLayout() {
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <div className="space-y-1">
             <h3 className="font-display text-lg text-foreground">Aligning with your flow</h3>
-            <p className="text-xs text-muted-foreground max-w-[200px]">Securing workspace session credentials...</p>
+            <p className="text-xs text-muted-foreground max-w-[200px]">
+              Securing workspace session credentials...
+            </p>
           </div>
         </div>
       </div>
@@ -106,10 +114,10 @@ function AppLayout() {
     <div className="flex min-h-screen w-full bg-background">
       <AppSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <AppTopbar 
-          onMenuClick={() => setMobileOpen(true)} 
-          onNewTaskClick={() => setIsTaskModalOpen(true)} 
-          title={title} 
+        <AppTopbar
+          onMenuClick={() => setMobileOpen(true)}
+          onNewTaskClick={() => setIsTaskModalOpen(true)}
+          title={title}
         />
         <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
           <Outlet />
@@ -129,14 +137,19 @@ function AppLayout() {
             >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
                 <h3 className="font-display text-xl text-foreground">Add New Task</h3>
-                <button onClick={() => setIsTaskModalOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+                <button
+                  onClick={() => setIsTaskModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
               <form onSubmit={handleCreateTask} className="space-y-3">
                 <label className="block">
-                  <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Task Title</span>
+                  <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                    Task Title
+                  </span>
                   <input
                     type="text"
                     required
@@ -149,7 +162,9 @@ function AppLayout() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Category Tag</span>
+                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Category Tag
+                    </span>
                     <input
                       type="text"
                       placeholder="Marketing / Eng / Design"
@@ -159,7 +174,9 @@ function AppLayout() {
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Priority</span>
+                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Priority
+                    </span>
                     <select
                       value={newPriority}
                       onChange={(e) => setNewPriority(e.target.value as any)}
@@ -174,7 +191,9 @@ function AppLayout() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Card Theme Color</span>
+                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Card Theme Color
+                    </span>
                     <select
                       value={newColor}
                       onChange={(e) => setNewColor(e.target.value)}
@@ -187,7 +206,9 @@ function AppLayout() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Due Date</span>
+                    <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                      Due Date
+                    </span>
                     <input
                       type="date"
                       value={newDueDate}

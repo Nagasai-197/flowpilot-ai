@@ -1,16 +1,18 @@
-import { Request, Response, NextFunction } from 'express';
-import { TaskService } from '../services/task.service.js';
-import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { Request, Response, NextFunction } from "express";
+import { TaskService } from "../services/task.service.js";
+import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
 
 export class TaskController {
   private static validateStatus(status?: string): void {
-    if (status && !['todo', 'doing', 'review', 'done'].includes(status)) {
-      throw new BadRequestError("Invalid status. Must be one of: 'todo', 'doing', 'review', 'done'");
+    if (status && !["todo", "doing", "review", "done"].includes(status)) {
+      throw new BadRequestError(
+        "Invalid status. Must be one of: 'todo', 'doing', 'review', 'done'",
+      );
     }
   }
 
   private static validatePriority(priority?: string): void {
-    if (priority && !['low', 'med', 'high'].includes(priority)) {
+    if (priority && !["low", "med", "high"].includes(priority)) {
       throw new BadRequestError("Invalid priority. Must be one of: 'low', 'med', 'high'");
     }
   }
@@ -37,7 +39,7 @@ export class TaskController {
       });
 
       res.status(200).json({
-        status: 'success',
+        status: "success",
         results: tasks.length,
         data: {
           tasks,
@@ -62,7 +64,7 @@ export class TaskController {
     try {
       const task = await TaskService.getTaskByIdForUser(id, userId);
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           task,
         },
@@ -84,7 +86,7 @@ export class TaskController {
     const { title, description, tag, priority, status, due_date, color } = req.body;
 
     if (!title) {
-      return next(new BadRequestError('Task title is required'));
+      return next(new BadRequestError("Task title is required"));
     }
 
     try {
@@ -95,14 +97,14 @@ export class TaskController {
         title,
         description,
         tag,
-        priority: priority || 'med',
-        status: status || 'todo',
+        priority: priority || "med",
+        status: status || "todo",
         due_date,
         color,
       });
 
       res.status(201).json({
-        status: 'success',
+        status: "success",
         data: {
           task,
         },
@@ -140,7 +142,7 @@ export class TaskController {
       });
 
       res.status(200).json({
-        status: 'success',
+        status: "success",
         data: {
           task,
         },
@@ -164,8 +166,34 @@ export class TaskController {
     try {
       await TaskService.deleteTaskForUser(id, userId);
       res.status(200).json({
-        status: 'success',
-        message: 'Task deleted successfully',
+        status: "success",
+        message: "Task deleted successfully",
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Generates an AI subtask breakdown
+   */
+  static async generateSubtaskBreakdown(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return next(new UnauthorizedError());
+    }
+
+    try {
+      const breakdown = await TaskService.generateSubtaskBreakdown(id, userId);
+      res.status(200).json({
+        status: "success",
+        data: breakdown,
       });
     } catch (err) {
       next(err);

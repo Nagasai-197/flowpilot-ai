@@ -15,13 +15,13 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTasksRouteImport } from './routes/app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
+import { Route as AppReviewRouteImport } from './routes/app.review'
+import { Route as AppProgressRouteImport } from './routes/app.progress'
 import { Route as AppPlannerRouteImport } from './routes/app.planner'
-import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
+import { Route as AppCoachRouteImport } from './routes/app.coach'
 import { Route as AppCalendarRouteImport } from './routes/app.calendar'
-import { Route as AppAssistantRouteImport } from './routes/app.assistant'
-import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 
 const SignupRoute = SignupRouteImport.update({
@@ -54,14 +54,19 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReviewRoute = AppReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProgressRoute = AppProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPlannerRoute = AppPlannerRouteImport.update({
   id: '/planner',
   path: '/planner',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGoalsRoute = AppGoalsRouteImport.update({
@@ -74,19 +79,14 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCoachRoute = AppCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCalendarRoute = AppCalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAssistantRoute = AppAssistantRouteImport.update({
-  id: '/assistant',
-  path: '/assistant',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
@@ -101,13 +101,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/analytics': typeof AppAnalyticsRoute
-  '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
 }
@@ -117,13 +117,13 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/analytics': typeof AppAnalyticsRoute
-  '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
 }
@@ -134,13 +134,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/api/$': typeof ApiSplatRoute
-  '/app/analytics': typeof AppAnalyticsRoute
-  '/app/assistant': typeof AppAssistantRoute
   '/app/calendar': typeof AppCalendarRoute
+  '/app/coach': typeof AppCoachRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
-  '/app/notifications': typeof AppNotificationsRoute
   '/app/planner': typeof AppPlannerRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
 }
@@ -152,13 +152,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/analytics'
-    | '/app/assistant'
     | '/app/calendar'
+    | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/notifications'
     | '/app/planner'
+    | '/app/progress'
+    | '/app/review'
     | '/app/settings'
     | '/app/tasks'
   fileRoutesByTo: FileRoutesByTo
@@ -168,13 +168,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/analytics'
-    | '/app/assistant'
     | '/app/calendar'
+    | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/notifications'
     | '/app/planner'
+    | '/app/progress'
+    | '/app/review'
     | '/app/settings'
     | '/app/tasks'
   id:
@@ -184,13 +184,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/api/$'
-    | '/app/analytics'
-    | '/app/assistant'
     | '/app/calendar'
+    | '/app/coach'
     | '/app/dashboard'
     | '/app/goals'
-    | '/app/notifications'
     | '/app/planner'
+    | '/app/progress'
+    | '/app/review'
     | '/app/settings'
     | '/app/tasks'
   fileRoutesById: FileRoutesById
@@ -247,18 +247,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/review': {
+      id: '/app/review'
+      path: '/review'
+      fullPath: '/app/review'
+      preLoaderRoute: typeof AppReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/progress': {
+      id: '/app/progress'
+      path: '/progress'
+      fullPath: '/app/progress'
+      preLoaderRoute: typeof AppProgressRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/planner': {
       id: '/app/planner'
       path: '/planner'
       fullPath: '/app/planner'
       preLoaderRoute: typeof AppPlannerRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/notifications': {
-      id: '/app/notifications'
-      path: '/notifications'
-      fullPath: '/app/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/goals': {
@@ -275,25 +282,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/coach': {
+      id: '/app/coach'
+      path: '/coach'
+      fullPath: '/app/coach'
+      preLoaderRoute: typeof AppCoachRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/calendar': {
       id: '/app/calendar'
       path: '/calendar'
       fullPath: '/app/calendar'
       preLoaderRoute: typeof AppCalendarRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/assistant': {
-      id: '/app/assistant'
-      path: '/assistant'
-      fullPath: '/app/assistant'
-      preLoaderRoute: typeof AppAssistantRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/analytics': {
-      id: '/app/analytics'
-      path: '/analytics'
-      fullPath: '/app/analytics'
-      preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
     '/api/$': {
@@ -307,25 +307,25 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
-  AppAnalyticsRoute: typeof AppAnalyticsRoute
-  AppAssistantRoute: typeof AppAssistantRoute
   AppCalendarRoute: typeof AppCalendarRoute
+  AppCoachRoute: typeof AppCoachRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppGoalsRoute: typeof AppGoalsRoute
-  AppNotificationsRoute: typeof AppNotificationsRoute
   AppPlannerRoute: typeof AppPlannerRoute
+  AppProgressRoute: typeof AppProgressRoute
+  AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTasksRoute: typeof AppTasksRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppAnalyticsRoute: AppAnalyticsRoute,
-  AppAssistantRoute: AppAssistantRoute,
   AppCalendarRoute: AppCalendarRoute,
+  AppCoachRoute: AppCoachRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppGoalsRoute: AppGoalsRoute,
-  AppNotificationsRoute: AppNotificationsRoute,
   AppPlannerRoute: AppPlannerRoute,
+  AppProgressRoute: AppProgressRoute,
+  AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTasksRoute: AppTasksRoute,
 }
