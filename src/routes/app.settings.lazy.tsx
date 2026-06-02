@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, Award, Target, Brain, Flame } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 
 export const Route = createLazyFileRoute("/app/settings")({
   component: Settings,
@@ -16,6 +18,7 @@ const tabs = [
   "AI personalization",
   "Integrations",
   "Security",
+  "Badges",
 ] as const;
 
 function Toggle({
@@ -548,6 +551,8 @@ function Settings() {
           ]}
         />
       )}
+
+      {tab === "Badges" && <BadgesLocker />}
     </div>
   );
 }
@@ -565,6 +570,157 @@ function ToggleCard({ items }: { items: [string, string, boolean][] }) {
             <Toggle defaultOn={on} />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+const BADGES = [
+  {
+    id: "flow_devotee",
+    name: "Flow Devotee",
+    desc: "Unlock 5 focus hours",
+    icon: Brain,
+    color: "lavender",
+    unlockValue: 5,
+  },
+  {
+    id: "streak_immortal",
+    name: "Streak Immortal",
+    desc: "Maintain a 5-day habit streak",
+    icon: Flame,
+    color: "peach",
+    unlockValue: 5,
+  },
+  {
+    id: "milestone_conqueror",
+    name: "Milestone Conqueror",
+    desc: "Achieve 5 goal milestones",
+    icon: Target,
+    color: "sky",
+    unlockValue: 5,
+  },
+  {
+    id: "reflection_master",
+    name: "Reflection Master",
+    desc: "Complete 1 reflection review",
+    icon: Award,
+    color: "mint",
+    unlockValue: 1,
+  },
+];
+
+function BadgesLocker() {
+  const { data: copilotSummary, isLoading } = useQuery<any>({
+    queryKey: ["copilot"],
+    queryFn: async () => {
+      const res = await api.get("/analytics/copilot");
+      return res.data;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex h-48 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const scores = copilotSummary?.scores || {};
+  const currentStreak = scores.currentStreak ?? 0;
+  const activeGoals = copilotSummary?.goals || [];
+  const weeklyFocus = copilotSummary?.weeklyGoal || { completedHours: 0 };
+  const achievements = {
+    focusHours: weeklyFocus.completedHours,
+    habitStreak: currentStreak,
+    milestonesCount: activeGoals.reduce(
+      (acc: number, g: any) => acc + (g.milestones?.filter((m: any) => m.completed).length || 0),
+      0,
+    ),
+    reviewsCount: copilotSummary?.reviewsCount ?? 0,
+  };
+
+  return (
+    <div className="rounded-3xl border border-border/60 bg-card p-6 shadow-soft text-left">
+      <div className="border-b border-border/60 pb-3 mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold flex items-center gap-1.5">
+            <Award className="h-4.5 w-4.5 text-primary" /> Badges Locker
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Unlock achievements through daily productivity flow.
+          </p>
+        </div>
+        <span className="text-[10px] text-muted-foreground uppercase bg-secondary px-2.5 py-1 rounded-full font-bold">
+          {
+            BADGES.filter((b) => {
+              let currentValue = 0;
+              if (b.id === "flow_devotee") currentValue = achievements.focusHours;
+              else if (b.id === "streak_immortal") currentValue = achievements.habitStreak;
+              else if (b.id === "milestone_conqueror") currentValue = achievements.milestonesCount;
+              else if (b.id === "reflection_master") currentValue = achievements.reviewsCount;
+              return currentValue >= b.unlockValue;
+            }).length
+          }{" "}
+          / {BADGES.length} Unlocked
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {BADGES.map((b) => {
+          let currentValue = 0;
+          if (b.id === "flow_devotee") currentValue = achievements.focusHours;
+          else if (b.id === "streak_immortal") currentValue = achievements.habitStreak;
+          else if (b.id === "milestone_conqueror") currentValue = achievements.milestonesCount;
+          else if (b.id === "reflection_master") currentValue = achievements.reviewsCount;
+
+          const isUnlocked = currentValue >= b.unlockValue;
+          const Icon = b.icon;
+
+          return (
+            <div
+              key={b.id}
+              className={cn(
+                "flex items-center gap-3.5 rounded-2xl border p-3.5 transition-all select-none",
+                isUnlocked
+                  ? "bg-gradient-to-br from-card to-secondary/20 border-border/60 shadow-soft"
+                  : "bg-secondary/10 border-border/20 opacity-50",
+              )}
+            >
+              <div
+                className={cn(
+                  "grid h-12 w-12 place-items-center rounded-xl transition-transform shrink-0",
+                  isUnlocked ? "shadow-soft" : "bg-secondary/40 text-muted-foreground",
+                )}
+                style={
+                  isUnlocked
+                    ? { background: `color-mix(in oklab, var(--${b.color}) 45%, var(--card))` }
+                    : undefined
+                }
+              >
+                <Icon className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold truncate">{b.name}</span>
+                  {isUnlocked && (
+                    <span className="rounded-md bg-emerald-500/10 px-1 py-0.2 text-[8px] font-extrabold text-emerald-600 uppercase border border-emerald-500/20">
+                      Unlocked
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5 leading-normal">{b.desc}</p>
+                <div className="flex justify-between text-[8px] text-muted-foreground/60 mt-2">
+                  <span>Task Adherence Progress</span>
+                  <span>
+                    {Math.min(b.unlockValue, currentValue)} / {b.unlockValue}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

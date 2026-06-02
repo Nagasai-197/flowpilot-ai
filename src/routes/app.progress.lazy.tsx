@@ -283,109 +283,119 @@ function ProgressPage() {
         </div>
 
         {/* Weekly Focus Hours Breakdown */}
-        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
-          <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
-            <h2 className="text-sm font-semibold flex items-center gap-1.5">
-              <Brain className="h-4.5 w-4.5 text-pink-500" /> Weekly Deep Work Hours
-            </h2>
-            <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-semibold text-pink-500 uppercase">
-              Focus Hours
-            </span>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={weeklyFocusData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="focusGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="rgb(236, 72, 153)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="rgb(236, 72, 153)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="day" stroke="var(--muted-foreground)" opacity={0.6} fontSize={10} />
-                <YAxis stroke="var(--muted-foreground)" opacity={0.6} fontSize={10} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card)",
-                    borderColor: "var(--border)",
-                    borderRadius: "16px",
-                    boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="hours"
-                  stroke="rgb(236, 72, 153)"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#focusGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* AI Goals Health & Completion Probability */}
-        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
-          <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
-            <h2 className="text-sm font-semibold flex items-center gap-1.5">
-              <Target className="h-4.5 w-4.5 text-indigo-500" /> Goal Health & AI Probability
-            </h2>
-            <span className="text-[10px] font-semibold text-indigo-500 uppercase bg-indigo-500/10 px-2 py-0.5 rounded-full">
-              Predictive Telemetry
-            </span>
-          </div>
-          <div className="h-64 w-full">
-            {goalsHealthData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground italic">
-                Create an AI Goal roadmap to activate predictive telemetry!
-              </div>
-            ) : (
+        {((focusStats.weeklyFocusHours ?? 0) > 0 ||
+          (focusStats.weeklyBreakdown?.some((h: number) => h > 0) ?? false)) && (
+          <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
+              <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                <Brain className="h-4.5 w-4.5 text-pink-500" /> Weekly Deep Work Hours
+              </h2>
+              <span className="rounded-full bg-pink-500/10 px-2 py-0.5 text-[10px] font-semibold text-pink-500 uppercase">
+                Focus Hours
+              </span>
+            </div>
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={goalsHealthData}
+                <AreaChart
+                  data={weeklyFocusData}
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
+                  <defs>
+                    <linearGradient id="focusGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="rgb(236, 72, 153)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="rgb(236, 72, 153)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <XAxis
-                    dataKey="name"
+                    dataKey="day"
                     stroke="var(--muted-foreground)"
                     opacity={0.6}
                     fontSize={10}
                   />
-                  <YAxis
-                    domain={[0, 100]}
-                    stroke="var(--muted-foreground)"
-                    opacity={0.6}
-                    fontSize={10}
-                  />
+                  <YAxis stroke="var(--muted-foreground)" opacity={0.6} fontSize={10} />
                   <Tooltip
                     contentStyle={{
                       background: "var(--card)",
                       borderColor: "var(--border)",
                       borderRadius: "16px",
+                      boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)",
                     }}
                   />
-                  <Bar
-                    dataKey="health"
-                    fill="var(--primary)"
-                    name="Goal Health Score"
-                    radius={[6, 6, 0, 0]}
-                    barSize={16}
+                  <Area
+                    type="monotone"
+                    dataKey="hours"
+                    stroke="rgb(236, 72, 153)"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#focusGrad)"
                   />
-                  <Bar
-                    dataKey="probability"
-                    fill="rgb(99, 102, 241)"
-                    name="AI Success Probability"
-                    radius={[6, 6, 0, 0]}
-                    barSize={16}
-                  />
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
-            )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* AI Goals Health & Completion Probability */}
+        {activeGoals.length > 0 && (
+          <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+            <div className="flex items-center justify-between border-b border-border/40 pb-3 mb-4">
+              <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                <Target className="h-4.5 w-4.5 text-indigo-500" /> Goal Health & AI Probability
+              </h2>
+              <span className="text-[10px] font-semibold text-indigo-500 uppercase bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                Predictive Telemetry
+              </span>
+            </div>
+            <div className="h-64 w-full">
+              {goalsHealthData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground italic">
+                  Create an AI Goal roadmap to activate predictive telemetry!
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={goalsHealthData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <XAxis
+                      dataKey="name"
+                      stroke="var(--muted-foreground)"
+                      opacity={0.6}
+                      fontSize={10}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      stroke="var(--muted-foreground)"
+                      opacity={0.6}
+                      fontSize={10}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--card)",
+                        borderColor: "var(--border)",
+                        borderRadius: "16px",
+                      }}
+                    />
+                    <Bar
+                      dataKey="health"
+                      fill="var(--primary)"
+                      name="Goal Health Score"
+                      radius={[6, 6, 0, 0]}
+                      barSize={16}
+                    />
+                    <Bar
+                      dataKey="probability"
+                      fill="rgb(99, 102, 241)"
+                      name="AI Success Probability"
+                      radius={[6, 6, 0, 0]}
+                      barSize={16}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Planner Adherence comparative BarChart */}
         <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
@@ -428,127 +438,57 @@ function ProgressPage() {
         </div>
       </section>
 
-      {/* Habit git-heatmap & Badges grid */}
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Habit heatmaps Git-Grid */}
-        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
-            <div>
-              <h2 className="text-sm font-semibold flex items-center gap-1.5">
-                <Zap className="h-4.5 w-4.5 text-orange-500" /> Habit Consistency Matrix
-              </h2>
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Check-ins pattern over the past 12 weeks.
-              </p>
-            </div>
-            <div className="flex gap-1 items-center text-[9px] text-muted-foreground font-semibold">
-              <span>Less</span>
-              <div className="h-2 w-2 rounded bg-secondary/60" />
-              <div
-                className="h-2 w-2 rounded"
-                style={{ background: "color-mix(in oklab, var(--primary) 30%, var(--card))" }}
-              />
-              <div
-                className="h-2 w-2 rounded"
-                style={{ background: "color-mix(in oklab, var(--primary) 65%, var(--card))" }}
-              />
-              <div className="h-2 w-2 rounded bg-primary" />
-              <span>More</span>
-            </div>
-          </div>
-
-          {/* Map cells grid */}
-          <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-x-auto py-1">
-            {heatmapCells.map((cell) => (
-              <div
-                key={cell.id}
-                className={cn(
-                  "h-3 w-3 rounded-sm transition-all hover:scale-115 cursor-pointer",
-                  cell.level === 0 && "bg-secondary/40",
-                  cell.level === 1 && "style-color-mix-30",
-                  cell.level === 2 && "style-color-mix-65",
-                  cell.level === 3 && "bg-primary",
-                )}
-                style={
-                  cell.level === 1
-                    ? { background: "color-mix(in oklab, var(--primary) 30%, var(--card))" }
-                    : cell.level === 2
-                      ? { background: "color-mix(in oklab, var(--primary) 65%, var(--card))" }
-                      : undefined
-                }
-                title={`Activity Score Level ${cell.level}`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Dynamic Achievements Badges Locker */}
-        <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
-          <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+      {/* Habit git-heatmap */}
+      <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-soft">
+        <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
+          <div>
             <h2 className="text-sm font-semibold flex items-center gap-1.5">
-              <Award className="h-4.5 w-4.5 text-primary" /> Badges Locker
+              <Zap className="h-4.5 w-4.5 text-orange-500" /> Habit Consistency Matrix
             </h2>
-            <span className="text-[10px] text-muted-foreground">Unlockable Achievements</span>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Check-ins pattern over the past 12 weeks.
+            </p>
           </div>
-
-          <div className="space-y-3">
-            {BADGES.map((b) => {
-              // Check unlock status
-              let currentValue = 0;
-              if (b.id === "flow_devotee") currentValue = achievements.focusHours;
-              else if (b.id === "streak_immortal") currentValue = achievements.habitStreak;
-              else if (b.id === "milestone_conqueror") currentValue = achievements.milestonesCount;
-              else if (b.id === "reflection_master") currentValue = achievements.reviewsCount;
-
-              const isUnlocked = currentValue >= b.unlockValue;
-              const Icon = b.icon;
-
-              return (
-                <div
-                  key={b.id}
-                  className={cn(
-                    "flex items-center gap-3 rounded-2xl border p-2.5 transition-all select-none",
-                    isUnlocked
-                      ? "bg-gradient-to-br from-card to-secondary/30 border-border/60"
-                      : "bg-secondary/10 border-border/20 opacity-50",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "grid h-10 w-10 place-items-center rounded-xl transition-transform",
-                      isUnlocked ? "shadow-soft" : "bg-secondary/40 text-muted-foreground",
-                    )}
-                    style={
-                      isUnlocked
-                        ? { background: `color-mix(in oklab, var(--${b.color}) 45%, var(--card))` }
-                        : undefined
-                    }
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-semibold truncate">{b.name}</span>
-                      {isUnlocked && (
-                        <span className="rounded-md bg-emerald-500/10 px-1 py-0.2 text-[8px] font-bold text-emerald-600 uppercase">
-                          Unlocked
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground truncate">{b.desc}</p>
-                    <div className="flex justify-between text-[8px] text-muted-foreground/60 mt-1">
-                      <span>Progress</span>
-                      <span>
-                        {Math.min(b.unlockValue, currentValue)}/{b.unlockValue}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex gap-1 items-center text-[9px] text-muted-foreground font-semibold">
+            <span>Less</span>
+            <div className="h-2 w-2 rounded bg-secondary/60" />
+            <div
+              className="h-2 w-2 rounded"
+              style={{ background: "color-mix(in oklab, var(--primary) 30%, var(--card))" }}
+            />
+            <div
+              className="h-2 w-2 rounded"
+              style={{ background: "color-mix(in oklab, var(--primary) 65%, var(--card))" }}
+            />
+            <div className="h-2 w-2 rounded bg-primary" />
+            <span>More</span>
           </div>
         </div>
-      </section>
+
+        {/* Map cells grid */}
+        <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-x-auto py-1">
+          {heatmapCells.map((cell) => (
+            <div
+              key={cell.id}
+              className={cn(
+                "h-3 w-3 rounded-sm transition-all hover:scale-115 cursor-pointer",
+                cell.level === 0 && "bg-secondary/40",
+                cell.level === 1 && "style-color-mix-30",
+                cell.level === 2 && "style-color-mix-65",
+                cell.level === 3 && "bg-primary",
+              )}
+              style={
+                cell.level === 1
+                  ? { background: "color-mix(in oklab, var(--primary) 30%, var(--card))" }
+                  : cell.level === 2
+                    ? { background: "color-mix(in oklab, var(--primary) 65%, var(--card))" }
+                    : undefined
+              }
+              title={`Activity Score Level ${cell.level}`}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
