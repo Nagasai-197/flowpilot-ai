@@ -6,7 +6,7 @@ export interface ScheduleBlock {
   label: string;
   type: "focus" | "break" | "meeting" | "habit" | "routine";
   start_time: string; // ISO string
-  end_time: string;   // ISO string
+  end_time: string; // ISO string
   color: "lavender" | "mint" | "sky" | "peach";
 }
 
@@ -31,7 +31,11 @@ export function usePlanner(targetDate?: string) {
 
   // 2. Generate optimized daily plan
   const generatePlanMutation = useMutation({
-    mutationFn: (arg?: string | { targetDate?: string; preferredDeepWorkDuration?: number; breakDuration?: number }) => {
+    mutationFn: (
+      arg?:
+        | string
+        | { targetDate?: string; preferredDeepWorkDuration?: number; breakDuration?: number },
+    ) => {
       let target = dateStr;
       let preferredDeepWorkDuration: number | undefined;
       let breakDuration: number | undefined;
@@ -59,8 +63,13 @@ export function usePlanner(targetDate?: string) {
 
   // 3. Create schedule block
   const createBlockMutation = useMutation({
-    mutationFn: (newBlock: { title: string; block_type: string; start_time: string; end_time: string; color?: string }) =>
-      api.post("/planner/blocks", newBlock),
+    mutationFn: (newBlock: {
+      title: string;
+      block_type: string;
+      start_time: string;
+      end_time: string;
+      color?: string;
+    }) => api.post("/planner/blocks", newBlock),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
       queryClient.invalidateQueries({ queryKey: ["copilot"] });
@@ -69,8 +78,17 @@ export function usePlanner(targetDate?: string) {
 
   // 4. Update schedule block
   const updateBlockMutation = useMutation({
-    mutationFn: ({ id, ...payload }: { id: string; title?: string; block_type?: string; start_time?: string; end_time?: string; color?: string }) =>
-      api.put(`/planner/blocks/${id}`, payload),
+    mutationFn: ({
+      id,
+      ...payload
+    }: {
+      id: string;
+      title?: string;
+      block_type?: string;
+      start_time?: string;
+      end_time?: string;
+      color?: string;
+    }) => api.put(`/planner/blocks/${id}`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["planner", dateStr] });
       queryClient.invalidateQueries({ queryKey: ["copilot"] });

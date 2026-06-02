@@ -16,7 +16,7 @@ export class FocusService {
    */
   static async logFocusSession(userId: string, payload: FocusSessionPayload) {
     logger.info(`Logging focus session for user: ${userId}, type: ${payload.type}`);
-    
+
     try {
       const { data, error } = await supabase
         .from("focus_sessions")
@@ -34,8 +34,14 @@ export class FocusService {
 
       if (error) {
         // Fallback-safe db tracking: log and return fallback if table not found
-        if (error.code === "PGRST116" || error.message?.includes("relation") || error.message?.includes("does not exist")) {
-          logger.warn(`focus_sessions table not found in Supabase. Falling back to local-only API response.`);
+        if (
+          error.code === "PGRST116" ||
+          error.message?.includes("relation") ||
+          error.message?.includes("does not exist")
+        ) {
+          logger.warn(
+            `focus_sessions table not found in Supabase. Falling back to local-only API response.`,
+          );
           return {
             id: "local_mock_" + Math.random().toString(36).substr(2, 9),
             user_id: userId,
@@ -47,7 +53,9 @@ export class FocusService {
       }
       return data;
     } catch (err: any) {
-      logger.warn(`Failed to insert focus session into database: ${err.message}. Returning mock response.`);
+      logger.warn(
+        `Failed to insert focus session into database: ${err.message}. Returning mock response.`,
+      );
       return {
         id: "local_mock_" + Math.random().toString(36).substr(2, 9),
         user_id: userId,
@@ -70,7 +78,9 @@ export class FocusService {
 
       if (error) {
         if (error.message?.includes("relation") || error.message?.includes("does not exist")) {
-          logger.warn(`focus_sessions table missing in Supabase. Returning localized empty statistics.`);
+          logger.warn(
+            `focus_sessions table missing in Supabase. Returning localized empty statistics.`,
+          );
           return this.getEmptyStats();
         }
         throw error;
@@ -79,7 +89,9 @@ export class FocusService {
       const sessions = data || [];
       return this.aggregateStats(sessions);
     } catch (err: any) {
-      logger.warn(`Focus statistics fetch failed: ${err.message}. Returning localized empty statistics.`);
+      logger.warn(
+        `Focus statistics fetch failed: ${err.message}. Returning localized empty statistics.`,
+      );
       return this.getEmptyStats();
     }
   }
@@ -107,7 +119,7 @@ export class FocusService {
   private static aggregateStats(sessions: any[]) {
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
-    
+
     // Start of current week (Monday)
     const currentDay = now.getDay();
     const distanceToMonday = currentDay === 0 ? 6 : currentDay - 1;
@@ -129,7 +141,7 @@ export class FocusService {
 
     sessions.forEach((s) => {
       if (!s.completed) return;
-      
+
       const createdDate = new Date(s.created_at);
       const dateStr = s.created_at.split("T")[0];
       const duration = s.duration_minutes || 0;
@@ -145,11 +157,11 @@ export class FocusService {
       // Track current week
       if (createdDate.getTime() >= startOfWeek.getTime()) {
         weeklyMins += duration;
-        
+
         // Monday is day 0, Sunday is day 6
         let dayIdx = createdDate.getDay(); // 0 is Sunday, 1 is Monday...
         let adjustedIdx = dayIdx === 0 ? 6 : dayIdx - 1;
-        weeklyBreakdown[adjustedIdx] += Math.round(duration / 60 * 10) / 10;
+        weeklyBreakdown[adjustedIdx] += Math.round((duration / 60) * 10) / 10;
       }
 
       // Track current month
@@ -166,10 +178,10 @@ export class FocusService {
     // Calculate Streak
     let streak = 0;
     const checkDate = new Date();
-    
+
     // Check if user completed something today or yesterday to continue streak
     let activeToday = activityDays[checkDate.toISOString().split("T")[0]] || false;
-    
+
     checkDate.setDate(checkDate.getDate() - 1);
     let activeYesterday = activityDays[checkDate.toISOString().split("T")[0]] || false;
 
@@ -189,18 +201,19 @@ export class FocusService {
       }
     }
 
-    const completionRate = sessions.length > 0
-      ? Math.round((sessions.filter(s => s.completed).length / sessions.length) * 100)
-      : 100;
+    const completionRate =
+      sessions.length > 0
+        ? Math.round((sessions.filter((s) => s.completed).length / sessions.length) * 100)
+        : 100;
 
     return {
-      todayFocusHours: Math.round(todayMins / 60 * 10) / 10,
-      weeklyFocusHours: Math.round(weeklyMins / 60 * 10) / 10,
-      monthlyFocusHours: Math.round(monthlyMins / 60 * 10) / 10,
+      todayFocusHours: Math.round((todayMins / 60) * 10) / 10,
+      weeklyFocusHours: Math.round((weeklyMins / 60) * 10) / 10,
+      monthlyFocusHours: Math.round((monthlyMins / 60) * 10) / 10,
       deepWorkStreak: streak,
       sessionCompletionRate: completionRate,
       focusSessionsCount: sessions.length,
-      deepWorkHours: Math.round(deepWorkMins / 60 * 10) / 10,
+      deepWorkHours: Math.round((deepWorkMins / 60) * 10) / 10,
       weeklyBreakdown,
       sessionsList: sessions.slice(0, 15),
     };

@@ -44,12 +44,18 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
             className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Try again
           </button>
-          <a href="/" className="inline-flex items-center justify-center rounded-full border border-border bg-card px-5 py-2.5 text-sm font-medium hover:bg-accent">
+          <a
+            href="/"
+            className="inline-flex items-center justify-center rounded-full border border-border bg-card px-5 py-2.5 text-sm font-medium hover:bg-accent"
+          >
             Go home
           </a>
         </div>
@@ -64,17 +70,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "FlowPilot AI — Your AI-Powered Personal Life OS" },
-      { name: "description", content: "FlowPilot AI is an intelligent personal life operating system that plans your day, balances your focus, and adapts to how you work." },
+      {
+        name: "description",
+        content:
+          "FlowPilot AI is an intelligent personal life operating system that plans your day, balances your focus, and adapts to how you work.",
+      },
       { property: "og:title", content: "FlowPilot AI — Your AI-Powered Personal Life OS" },
-      { property: "og:description", content: "Plan, focus, and flow with an AI productivity OS designed for makers." },
+      {
+        property: "og:description",
+        content: "Plan, focus, and flow with an AI productivity OS designed for makers.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&family=Instrument+Serif:ital@0;1&display=swap",
+      },
+      { rel: "stylesheet", href: appCss },
     ],
   }),
   shellComponent: RootShell,
@@ -88,7 +104,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <script dangerouslySetInnerHTML={{ __html: `
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
           (function() {
             try {
               var theme = localStorage.getItem('theme') || 'system';
@@ -104,9 +122,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
               }
             } catch (e) {}
           })();
-        ` }} />
+        `,
+          }}
+        />
       </head>
-      <body>{children}<Scripts /></body>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }

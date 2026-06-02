@@ -101,7 +101,7 @@ export function useTasks() {
             tasks: updater(old.data.tasks),
           },
         };
-      }
+      },
     );
   }
 

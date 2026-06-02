@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "/api");
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:5000/api" : "/api");
 
 export class APIError extends Error {
   status: number;
@@ -19,7 +20,7 @@ function decodeJWT(token: string) {
       atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
+        .join(""),
     );
     return JSON.parse(jsonPayload);
   } catch {
@@ -32,7 +33,7 @@ function isTokenExpired(token: string): boolean {
   if (!payload || !payload.exp) return true;
   const expiry = payload.exp * 1000;
   // If it expires in less than 30 seconds, treat it as expired to avoid race condition with network flight
-  return Date.now() >= (expiry - 30000);
+  return Date.now() >= expiry - 30000;
 }
 
 let refreshPromise: Promise<string | null> | null = null;

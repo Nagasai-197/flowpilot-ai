@@ -9,7 +9,18 @@ import { useState, useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { AppTopbar } from "@/components/app/AppTopbar";
 import { useAuth } from "../hooks/useAuth";
-import { Loader2, X, Play, Pause, Square, Award, Brain, Target, Sparkles, ChevronRight } from "lucide-react";
+import {
+  Loader2,
+  X,
+  Play,
+  Pause,
+  Square,
+  Award,
+  Brain,
+  Target,
+  Sparkles,
+  ChevronRight,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTasks } from "../hooks/useTasks";
 import { toast } from "sonner";
@@ -62,7 +73,9 @@ function AppLayout() {
   const [focusTimer, setFocusTimer] = useState(25 * 60);
   const [focusDuration, setFocusDuration] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [focusType, setFocusType] = useState<"pomodoro" | "extended_focus" | "deep_work" | "custom">("pomodoro");
+  const [focusType, setFocusType] = useState<
+    "pomodoro" | "extended_focus" | "deep_work" | "custom"
+  >("pomodoro");
   const [focusTask, setFocusTask] = useState<{
     id?: string;
     title: string;
@@ -79,7 +92,7 @@ function AppLayout() {
     "Deep focus is a muscle. You are building structural neural pathways with every minute. ⚡",
     "Protect this space. Your outcomes-centric focus determines your level progression! 🌟",
     "You are in the zone. Every completed Pomodoro builds unstoppable momentum! 🧘",
-    "Great athletes recover. Remember to take your planned breaks to avoid fatigue. 🔋"
+    "Great athletes recover. Remember to take your planned breaks to avoid fatigue. 🔋",
   ];
 
   useEffect(() => {
@@ -89,7 +102,7 @@ function AppLayout() {
         pomodoro: 25 * 60,
         extended_focus: 50 * 60,
         deep_work: 90 * 60,
-        custom: (detail.customMinutes || 25) * 60
+        custom: (detail.customMinutes || 25) * 60,
       };
       const duration = durationMap[detail.type as keyof typeof durationMap] || 25 * 60;
       setFocusTask({
@@ -98,7 +111,7 @@ function AppLayout() {
         goalId: detail.goalId || undefined,
         goalTitle: detail.goalTitle || undefined,
         milestoneId: detail.milestoneId || undefined,
-        milestoneTitle: detail.milestoneTitle || undefined
+        milestoneTitle: detail.milestoneTitle || undefined,
       });
       setFocusType(detail.type || "pomodoro");
       setFocusDuration(duration);
@@ -110,7 +123,8 @@ function AppLayout() {
     };
 
     window.addEventListener("start-focus-session", handleStartFocus as EventListener);
-    return () => window.removeEventListener("start-focus-session", handleStartFocus as EventListener);
+    return () =>
+      window.removeEventListener("start-focus-session", handleStartFocus as EventListener);
   }, []);
 
   useEffect(() => {
@@ -136,7 +150,7 @@ function AppLayout() {
 
   const handleCompleteFocus = async () => {
     const durationMins = Math.round(focusDuration / 60);
-    
+
     // Fallback-safe localStorage database mock sync
     const localSessions = JSON.parse(localStorage.getItem("local_focus_sessions") || "[]");
     const newSession = {
@@ -147,15 +161,15 @@ function AppLayout() {
       duration_minutes: durationMins,
       type: focusType,
       completed: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
     localStorage.setItem("local_focus_sessions", JSON.stringify([...localSessions, newSession]));
 
     // Increment today's logged hours in browser cache
     const todayHours = Number(localStorage.getItem("focus_hours_today") || "0");
     const weeklyHours = Number(localStorage.getItem("focus_hours_weekly") || "0");
-    localStorage.setItem("focus_hours_today", String(todayHours + (durationMins / 60)));
-    localStorage.setItem("focus_hours_weekly", String(weeklyHours + (durationMins / 60)));
+    localStorage.setItem("focus_hours_today", String(todayHours + durationMins / 60));
+    localStorage.setItem("focus_hours_weekly", String(weeklyHours + durationMins / 60));
 
     try {
       await api.post("/focus", {
@@ -164,7 +178,7 @@ function AppLayout() {
         milestone_id: focusTask?.milestoneId || null,
         duration_minutes: durationMins,
         type: focusType,
-        completed: true
+        completed: true,
       });
     } catch (e) {
       console.log("Database offline or table missing. Local-only session logged.");
@@ -245,7 +259,9 @@ function AppLayout() {
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <div className="space-y-1">
-            <h3 className="font-display text-lg text-foreground">Aligning with your flow</h3>
+            <div className="font-display text-lg text-foreground font-semibold">
+              Aligning with your flow
+            </div>
             <p className="text-xs text-muted-foreground max-w-[200px]">
               Securing workspace session credentials...
             </p>
@@ -284,7 +300,7 @@ function AppLayout() {
               className="glass max-w-md w-full rounded-3xl p-6 shadow-float border border-border/60 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-border/60 pb-3">
-                <h3 className="font-display text-xl text-foreground">Add New Task</h3>
+                <h2 className="font-display text-xl text-foreground">Add New Task</h2>
                 <button
                   onClick={() => setIsTaskModalOpen(false)}
                   className="text-muted-foreground hover:text-foreground cursor-pointer"
@@ -465,7 +481,11 @@ function AppLayout() {
                   title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
                   className="p-6 rounded-full bg-white text-zinc-950 hover:scale-105 transition-all cursor-pointer shadow-float"
                 >
-                  {isTimerRunning ? <Pause className="h-8 w-8 fill-current" /> : <Play className="h-8 w-8 fill-current" />}
+                  {isTimerRunning ? (
+                    <Pause className="h-8 w-8 fill-current" />
+                  ) : (
+                    <Play className="h-8 w-8 fill-current" />
+                  )}
                 </button>
 
                 <button

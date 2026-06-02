@@ -76,4 +76,3 @@ export function useNotifications() {
     isClearing: clearAllMutation.isPending,
   };
 }
-

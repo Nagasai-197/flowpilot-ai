@@ -27,12 +27,12 @@ const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/signup.lazy').then((d) => d.Route))
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/login.lazy').then((d) => d.Route))
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -42,47 +42,47 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/index.lazy').then((d) => d.Route))
 const AppTasksRoute = AppTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.tasks.lazy').then((d) => d.Route))
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.settings.lazy').then((d) => d.Route))
 const AppReviewRoute = AppReviewRouteImport.update({
   id: '/review',
   path: '/review',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.review.lazy').then((d) => d.Route))
 const AppProgressRoute = AppProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.progress.lazy').then((d) => d.Route))
 const AppPlannerRoute = AppPlannerRouteImport.update({
   id: '/planner',
   path: '/planner',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.planner.lazy').then((d) => d.Route))
 const AppGoalsRoute = AppGoalsRouteImport.update({
   id: '/goals',
   path: '/goals',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.goals.lazy').then((d) => d.Route))
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.dashboard.lazy').then((d) => d.Route))
 const AppCoachRoute = AppCoachRouteImport.update({
   id: '/coach',
   path: '/coach',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/app.coach.lazy').then((d) => d.Route))
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',

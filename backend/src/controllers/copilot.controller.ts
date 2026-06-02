@@ -126,7 +126,9 @@ export class CopilotController {
           .eq("user_id", userId);
         focusSessions = fsData || [];
       } catch (err: any) {
-        logger.warn(`Goals, milestones, reviews, or focus tables not fully queried: ${err.message}`);
+        logger.warn(
+          `Goals, milestones, reviews, or focus tables not fully queried: ${err.message}`,
+        );
       }
 
       // Query raw habit logs in the last 30 days for streak and consistency calculations
@@ -245,21 +247,20 @@ export class CopilotController {
       const goalsWithHealth = activeGoals.map((g) => {
         const goalMilestones = milestonesData.filter((m) => m.goal_id === g.id);
         const completedMilestones = goalMilestones.filter((m) => m.completed).length;
-        const milestoneRate = goalMilestones.length > 0
-          ? completedMilestones / goalMilestones.length
-          : 0.5; // default if no milestones
+        const milestoneRate =
+          goalMilestones.length > 0 ? completedMilestones / goalMilestones.length : 0.5; // default if no milestones
 
         // Find linked tasks: tag matches goal category or title case-insensitively
-        const linkedTasks = tasks.filter((t) => 
-          t.tag && 
-          (t.tag.toLowerCase() === g.category?.toLowerCase() || 
-           t.tag.toLowerCase() === g.title?.toLowerCase() ||
-           (t.description?.toLowerCase().includes(`[milestone:`) && t.description?.toLowerCase().includes(g.title?.toLowerCase())))
+        const linkedTasks = tasks.filter(
+          (t) =>
+            t.tag &&
+            (t.tag.toLowerCase() === g.category?.toLowerCase() ||
+              t.tag.toLowerCase() === g.title?.toLowerCase() ||
+              (t.description?.toLowerCase().includes(`[milestone:`) &&
+                t.description?.toLowerCase().includes(g.title?.toLowerCase()))),
         );
         const completedLinkedTasks = linkedTasks.filter((t) => t.status === "done").length;
-        const taskRate = linkedTasks.length > 0
-          ? completedLinkedTasks / linkedTasks.length
-          : 1.0;
+        const taskRate = linkedTasks.length > 0 ? completedLinkedTasks / linkedTasks.length : 1.0;
 
         // Focus hours on this specific goal
         const goalSessions = focusSessions.filter((fs) => fs.goal_id === g.id && fs.completed);
@@ -271,18 +272,28 @@ export class CopilotController {
         const plannerFactor = plannerAdherence / 100;
 
         // Calculate Goal Health Score using weighted parameters
-        let healthVal = (milestoneRate * 35) + (taskRate * 25) + (focusFactor * 15) + (plannerFactor * 15) + (habitFactor * 10);
+        let healthVal =
+          milestoneRate * 35 +
+          taskRate * 25 +
+          focusFactor * 15 +
+          plannerFactor * 15 +
+          habitFactor * 10;
         let healthScore = Math.min(100, Math.max(0, Math.round(healthVal * 100)));
-        
+
         // Dynamic target date deadline slip penalty
         let daysRemaining: number | null = null;
         if (g.target_date) {
           const targetDate = new Date(g.target_date);
-          daysRemaining = Math.ceil((targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+          daysRemaining = Math.ceil(
+            (targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+          );
           const remainingMilestones = goalMilestones.filter((m) => !m.completed).length;
-          
+
           if (remainingMilestones > 0 && daysRemaining < remainingMilestones * 2) {
-            const penalty = Math.min(30, Math.round((remainingMilestones * 2 - Math.max(0, daysRemaining)) * 2));
+            const penalty = Math.min(
+              30,
+              Math.round((remainingMilestones * 2 - Math.max(0, daysRemaining)) * 2),
+            );
             healthScore = Math.max(10, healthScore - penalty);
           }
         }
@@ -298,10 +309,17 @@ export class CopilotController {
             // Milestone rate and health weighted by days remaining
             const remainingRate = 1 - milestoneRate;
             const velocityNeeded = remainingRate / Math.max(1, daysRemaining);
-            if (velocityNeeded > 0.05) { // Needs to complete more than 5% per day
-              completionProbability = Math.max(10, Math.round((daysRemaining / (remainingRate * 10 || 1)) * 10));
+            if (velocityNeeded > 0.05) {
+              // Needs to complete more than 5% per day
+              completionProbability = Math.max(
+                10,
+                Math.round((daysRemaining / (remainingRate * 10 || 1)) * 10),
+              );
             } else {
-              completionProbability = Math.min(95, Math.round(healthScore * 0.8 + daysRemaining * 0.5));
+              completionProbability = Math.min(
+                95,
+                Math.round(healthScore * 0.8 + daysRemaining * 0.5),
+              );
             }
           }
         } else {
@@ -326,7 +344,7 @@ export class CopilotController {
           completionProbability: Math.min(100, Math.max(5, completionProbability)),
           focusHours: Math.round(focusHours * 10) / 10,
           milestonesCount: goalMilestones.length,
-          completedMilestonesCount,
+          completedMilestonesCount: completedMilestones,
         };
       });
 
@@ -337,7 +355,11 @@ export class CopilotController {
           : 100;
       const focusAdherenceVal = focusStats.sessionCompletionRate || 100;
       const lifeScoreVal =
-        taskRatio * 0.3 + habitConsistency * 0.2 + goalProgress * 0.2 + plannerAdherence * 0.15 + focusAdherenceVal * 0.15;
+        taskRatio * 0.3 +
+        habitConsistency * 0.2 +
+        goalProgress * 0.2 +
+        plannerAdherence * 0.15 +
+        focusAdherenceVal * 0.15;
       const lifeScore = Math.min(100, Math.max(0, Math.round(lifeScoreVal)));
 
       // 8c. Calculations: Dynamic XP & Level Gamification Engine
@@ -471,7 +493,8 @@ export class CopilotController {
           category: "Habits",
           title: "Habit Consistency Dropping",
           description: `Overall consistency has fallen to ${habitConsistency}%, introducing a risk of habit slip.`,
-          actionableSuggestion: "Create a micro-habit (e.g. 5-min review) and complete it first thing in tomorrow's plan.",
+          actionableSuggestion:
+            "Create a micro-habit (e.g. 5-min review) and complete it first thing in tomorrow's plan.",
         });
       } else if (habitConsistency >= 85) {
         opportunitySignals.push({
@@ -480,7 +503,8 @@ export class CopilotController {
           category: "Habits",
           title: "Habit Master Momentum",
           description: `Excellent habit consistency of ${habitConsistency}%! You are building solid neural pathways.`,
-          actionableSuggestion: "Consider tracking a secondary habit or adding a milestone related to streak maintenance.",
+          actionableSuggestion:
+            "Consider tracking a secondary habit or adding a milestone related to streak maintenance.",
         });
       }
 
@@ -492,7 +516,8 @@ export class CopilotController {
           category: "Planner",
           title: "Planner Slippage Risk",
           description: `Schedule adherence is low (${plannerAdherence}%). You are planning blocks but drifting during execution.`,
-          actionableSuggestion: "Enable visual Deep Work focus blocks in the morning and reduce block duration to 25 minutes.",
+          actionableSuggestion:
+            "Enable visual Deep Work focus blocks in the morning and reduce block duration to 25 minutes.",
         });
       } else if (plannerAdherence >= 80) {
         opportunitySignals.push({
@@ -501,7 +526,8 @@ export class CopilotController {
           category: "Planner",
           title: "Execution Alignment Strong",
           description: `Your calendar planning matches your daily focus execution flawlessly at ${plannerAdherence}%!`,
-          actionableSuggestion: "Protect this deep state by blocking 15-minute scheduled recovery spaces between focus blocks.",
+          actionableSuggestion:
+            "Protect this deep state by blocking 15-minute scheduled recovery spaces between focus blocks.",
         });
       }
 
@@ -513,7 +539,8 @@ export class CopilotController {
           category: "Focus",
           title: `Focus Streak of ${focusStats.deepWorkStreak} Days!`,
           description: `You have successfully balanced cognitive deep work blocks for consecutive days.`,
-          actionableSuggestion: "Add a custom focus sprint today to lock in your 'Deep Work Monk' digital achievement badge!",
+          actionableSuggestion:
+            "Add a custom focus sprint today to lock in your 'Deep Work Monk' digital achievement badge!",
         });
       }
 
@@ -602,7 +629,9 @@ export class CopilotController {
         }
       });
 
-      const uniquePlannerDays = new Set(schedule?.map((b: any) => b.start_time?.split("T")[0]) || []);
+      const uniquePlannerDays = new Set(
+        schedule?.map((b: any) => b.start_time?.split("T")[0]) || [],
+      );
       uniquePlannerDays.forEach((day) => {
         if (!day) return;
         activities.push({

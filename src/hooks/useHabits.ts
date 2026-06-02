@@ -12,7 +12,7 @@ export interface Habit {
 
 export function useHabits() {
   const queryClient = useQueryClient();
-  const localDate = new Date().toLocaleDateString('en-CA');
+  const localDate = new Date().toLocaleDateString("en-CA");
 
   // 1. Query to fetch habits
   const habitsQuery = useQuery<{ status: string; data: { habits: Habit[] } }>({
@@ -24,8 +24,7 @@ export function useHabits() {
 
   // 2. Mutation to create a new habit configuration
   const createHabitMutation = useMutation({
-    mutationFn: (newHabit: { name: string; color?: string }) =>
-      api.post("/habits", newHabit),
+    mutationFn: (newHabit: { name: string; color?: string }) => api.post("/habits", newHabit),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["habits"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });

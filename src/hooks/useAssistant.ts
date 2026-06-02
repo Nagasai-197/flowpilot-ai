@@ -11,22 +11,22 @@ export interface Message {
 }
 
 export interface AIAssistantAction {
-  type: 
-    | "reschedule_plan" 
-    | "create_task" 
+  type:
+    | "reschedule_plan"
+    | "create_task"
     | "update_task"
     | "delete_task"
     | "complete_task"
-    | "create_habit" 
+    | "create_habit"
     | "update_habit"
     | "delete_habit"
     | "create_goal"
     | "complete_goal"
     | "delete_goal"
     | "show_goals"
-    | "show_schedule" 
-    | "show_analytics" 
-    | "move_block" 
+    | "show_schedule"
+    | "show_analytics"
+    | "move_block"
     | "regenerate_plan"
     | "none";
   requiresConfirmation?: boolean;
@@ -42,7 +42,10 @@ export interface AIAssistantResponse {
 export function useAssistant() {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([
-    { role: "ai", text: "Good morning! I am FlowPilot, your empathetic productivity assistant. How can I help you optimize your schedule or track your consistency today?" }
+    {
+      role: "ai",
+      text: "Good morning! I am FlowPilot, your empathetic productivity assistant. How can I help you optimize your schedule or track your consistency today?",
+    },
   ]);
 
   const executeImmediateAction = async (action: AIAssistantAction) => {
@@ -114,7 +117,7 @@ export function useAssistant() {
   const confirmAction = async (msgIndex: number, action: AIAssistantAction) => {
     try {
       toast.loading("Executing action...");
-      
+
       if (action.type === "delete_task" && action.payload?.id) {
         await api.delete(`/tasks/${action.payload.id}`);
         toast.dismiss();
@@ -151,7 +154,7 @@ export function useAssistant() {
         if (nextMsgs[msgIndex]) {
           nextMsgs[msgIndex] = {
             ...nextMsgs[msgIndex],
-            actionExecuted: "confirmed"
+            actionExecuted: "confirmed",
           };
         }
         return nextMsgs;
@@ -168,7 +171,7 @@ export function useAssistant() {
       if (nextMsgs[msgIndex]) {
         nextMsgs[msgIndex] = {
           ...nextMsgs[msgIndex],
-          actionExecuted: "cancelled"
+          actionExecuted: "cancelled",
         };
       }
       return nextMsgs;
@@ -184,8 +187,12 @@ export function useAssistant() {
     isPending: chatMutation.isPending,
     isError: chatMutation.isError,
     error: chatMutation.error,
-    clearHistory: () => setMessages([
-      { role: "ai", text: "Good morning! I am FlowPilot, your empathetic productivity assistant. How can I help you optimize your schedule or track your consistency today?" }
-    ]),
+    clearHistory: () =>
+      setMessages([
+        {
+          role: "ai",
+          text: "Good morning! I am FlowPilot, your empathetic productivity assistant. How can I help you optimize your schedule or track your consistency today?",
+        },
+      ]),
   };
 }

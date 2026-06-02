@@ -14,7 +14,10 @@ export function useAuth() {
     // 1. Initial retrieval of session
     async function bootstrapSession() {
       try {
-        const { data: { session: activeSession }, error: sessionError } = await supabase.auth.getSession();
+        const {
+          data: { session: activeSession },
+          error: sessionError,
+        } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         if (mounted) {
@@ -35,7 +38,9 @@ export function useAuth() {
     bootstrapSession();
 
     // 2. Listen reactively to auth state updates (sign_in, sign_out, token_refreshed)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, activeSession) => {
       if (mounted) {
         setSession(activeSession);
         setUser(activeSession?.user ?? null);
@@ -109,7 +114,7 @@ export function useAuth() {
     try {
       const { error: logoutError } = await supabase.auth.signOut();
       if (logoutError) throw logoutError;
-      
+
       // Optional: Clear any local storages if necessary
       setUser(null);
       setSession(null);

@@ -20,9 +20,21 @@ export function DashboardPreview() {
         <div className="grid grid-cols-12 gap-4 p-4 md:p-6">
           {/* sidebar */}
           <div className="col-span-3 hidden flex-col gap-1.5 rounded-2xl bg-sidebar p-3 md:flex">
-            {["Dashboard","Tasks","AI Planner","Analytics","Habits","Calendar","Settings"].map((l, i) => (
-              <div key={l} className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs ${i===0 ? "bg-card shadow-soft font-medium" : "text-muted-foreground"}`}>
-                <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />{l}
+            {[
+              "Dashboard",
+              "Tasks",
+              "AI Planner",
+              "Analytics",
+              "Habits",
+              "Calendar",
+              "Settings",
+            ].map((l, i) => (
+              <div
+                key={l}
+                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs ${i === 0 ? "bg-card shadow-soft font-medium" : "text-muted-foreground"}`}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary/60" />
+                {l}
               </div>
             ))}
           </div>
@@ -47,7 +59,12 @@ export function DashboardPreview() {
               ].map((s) => (
                 <div key={s.l} className="rounded-2xl border border-border/60 bg-card p-3">
                   <div className="flex items-center gap-2">
-                    <div className="grid h-7 w-7 place-items-center rounded-lg" style={{ background: `color-mix(in oklab, var(--${s.color}) 65%, var(--card))` }}>
+                    <div
+                      className="grid h-7 w-7 place-items-center rounded-lg"
+                      style={{
+                        background: `color-mix(in oklab, var(--${s.color}) 65%, var(--card))`,
+                      }}
+                    >
                       <s.icon className="h-3.5 w-3.5" />
                     </div>
                     <div className="text-[10px] text-muted-foreground">{s.l}</div>
@@ -79,7 +96,10 @@ export function DashboardPreview() {
                     <span className="w-10 text-muted-foreground">{b.t}</span>
                     <span className="flex-1 font-medium">{b.l}</span>
                     <span className="relative h-1.5 w-24 overflow-hidden rounded-full bg-secondary">
-                      <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: b.w, background: `var(--${b.c})` }} />
+                      <span
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ width: b.w, background: `var(--${b.c})` }}
+                      />
                     </span>
                   </motion.div>
                 ))}

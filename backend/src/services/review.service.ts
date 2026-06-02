@@ -144,7 +144,8 @@ export class ReviewService {
       logger.warn(`focus_sessions query ignored: ${e.message}`);
     }
 
-    const calculatedFocusHours = focusSessionsHours > 0 ? focusSessionsHours : Math.round((actualFocusMinutes / 60) * 10) / 10;
+    const calculatedFocusHours =
+      focusSessionsHours > 0 ? focusSessionsHours : Math.round((actualFocusMinutes / 60) * 10) / 10;
 
     const apiKey = config.GEMINI_API_KEY;
     if (!apiKey || apiKey === "placeholder-gemini-key") {

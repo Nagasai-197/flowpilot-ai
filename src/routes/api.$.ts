@@ -1,7 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { handleExpressRequest } from '../lib/expressAdapter';
+import { createFileRoute } from "@tanstack/react-router";
+import { handleExpressRequest } from "../lib/expressAdapter";
 
-export const Route = createFileRoute('/api/$')({
+export const Route = createFileRoute("/api/$")({
   server: {
     handlers: {
       GET: async ({ request }) => handleExpressRequest(request),
