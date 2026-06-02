@@ -96,7 +96,9 @@ export const api = {
         try {
           const textBody = await response.text();
           if (textBody) errorMessage = textBody;
-        } catch {}
+        } catch {
+          errorMessage = errorMessage || "Unable to parse server error response";
+        }
       }
       throw new APIError(errorMessage, response.status);
     }

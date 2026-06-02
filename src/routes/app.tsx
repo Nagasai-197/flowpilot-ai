@@ -151,7 +151,20 @@ function AppLayout() {
   const handleCompleteFocus = async () => {
     const durationMins = Math.round(focusDuration / 60);
 
-    // Fallback-safe localStorage database mock sync
+    try {
+      await api.post("/focus", {
+        task_id: focusTask?.id || null,
+        goal_id: focusTask?.goalId || null,
+        milestone_id: focusTask?.milestoneId || null,
+        duration_minutes: durationMins,
+        type: focusType,
+        completed: true,
+      });
+    } catch (e) {
+      toast.error("Focus session could not be saved. Please check the backend connection.");
+      return;
+    }
+
     const localSessions = JSON.parse(localStorage.getItem("local_focus_sessions") || "[]");
     const newSession = {
       id: "local_session_" + Date.now(),
@@ -165,29 +178,15 @@ function AppLayout() {
     };
     localStorage.setItem("local_focus_sessions", JSON.stringify([...localSessions, newSession]));
 
-    // Increment today's logged hours in browser cache
     const todayHours = Number(localStorage.getItem("focus_hours_today") || "0");
     const weeklyHours = Number(localStorage.getItem("focus_hours_weekly") || "0");
     localStorage.setItem("focus_hours_today", String(todayHours + durationMins / 60));
     localStorage.setItem("focus_hours_weekly", String(weeklyHours + durationMins / 60));
 
-    try {
-      await api.post("/focus", {
-        task_id: focusTask?.id || null,
-        goal_id: focusTask?.goalId || null,
-        milestone_id: focusTask?.milestoneId || null,
-        duration_minutes: durationMins,
-        type: focusType,
-        completed: true,
-      });
-    } catch (e) {
-      console.log("Database offline or table missing. Local-only session logged.");
-    }
-
     // Tapping completion logic for tasks if checked
     if (focusTask?.id) {
       try {
-        await api.post(`/tasks/${focusTask.id}/toggle`, { completed: true });
+        await api.put(`/tasks/${focusTask.id}`, { status: "done" });
         toast.info("Linked task marked completed! 🏁");
       } catch (err) {
         console.log("Failed to toggle linked task.");

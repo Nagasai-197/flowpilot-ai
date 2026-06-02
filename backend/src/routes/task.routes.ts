@@ -1,7 +1,11 @@
 import { Router } from "express";
 import { TaskController } from "../controllers/task.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { validateTaskInput, validateTaskUpdateInput } from "../middlewares/validation.js";
+import {
+  validateTaskInput,
+  validateTaskToggleInput,
+  validateTaskUpdateInput,
+} from "../middlewares/validation.js";
 
 const router = Router();
 
@@ -16,6 +20,7 @@ router
   .put(validateTaskUpdateInput, TaskController.updateTask)
   .delete(TaskController.deleteTask);
 
+router.post("/:id/toggle", validateTaskToggleInput, TaskController.toggleTaskCompletion);
 router.post("/:id/breakdown", TaskController.generateSubtaskBreakdown);
 
 export default router;

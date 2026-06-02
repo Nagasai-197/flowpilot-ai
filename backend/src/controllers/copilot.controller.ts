@@ -694,6 +694,7 @@ export class CopilotController {
             targetHours: 25,
             percentage: Math.min(100, Math.round((completedWeeklyHours / 25) * 100)),
           },
+          reviewsCount,
           recentActivities,
           todayPlanner: (schedule || []).map((b) => ({
             id: b.id,

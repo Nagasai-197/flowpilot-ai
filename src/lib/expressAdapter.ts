@@ -15,8 +15,16 @@ import app from "../../backend/src/app.js";
  */
 export async function handleExpressRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
+  let requestBodyText = "";
+  if (request.method !== "GET" && request.method !== "HEAD" && request.body) {
+    try {
+      requestBodyText = await request.text();
+    } catch (err) {
+      console.error("Failed to read Web request body text:", err);
+    }
+  }
 
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const resHeaders: Record<string, string[]> = {};
     let statusCode = 200;
     const bodyChunks: Buffer[] = [];
@@ -138,15 +146,6 @@ export async function handleExpressRequest(request: Request): Promise<Response> 
     });
 
     // ─── 2. Mock http.IncomingMessage from Web Request ─────────────────────────
-    let requestBodyText = "";
-    if (request.method !== "GET" && request.method !== "HEAD" && request.body) {
-      try {
-        requestBodyText = await request.text();
-      } catch (err) {
-        console.error("Failed to read Web request body text:", err);
-      }
-    }
-
     const req: any = new Readable();
     req._read = () => {};
     req.push(Buffer.from(requestBodyText));

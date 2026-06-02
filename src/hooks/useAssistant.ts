@@ -66,7 +66,7 @@ export function useAssistant() {
           toast.success(`Goal '${action.payload?.title}' created successfully! 🎯`);
           queryClient.invalidateQueries({ queryKey: ["copilot"] });
         } catch (e) {
-          toast.error("Goals system requires SQL table activation in console.");
+          toast.error("Goal creation failed. Please try again after refreshing the workspace.");
         }
       } else if (action.type === "regenerate_plan") {
         toast.loading("Re-optimizing your schedule...");
@@ -144,7 +144,7 @@ export function useAssistant() {
           queryClient.invalidateQueries({ queryKey: ["copilot"] });
         } catch (e) {
           toast.dismiss();
-          toast.error("Goals table unavailable.");
+          toast.error("Goal deletion failed. Please refresh and try again.");
         }
       }
 

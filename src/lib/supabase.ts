@@ -8,9 +8,15 @@ if (typeof window !== "undefined" && (!supabaseUrl || !supabaseAnonKey)) {
   console.error(
     "Warning: Supabase environment variables are missing! Make sure to configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
   );
+
+  if (import.meta.env.PROD) {
+    throw new Error(
+      "Supabase environment variables are required in production. Configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
+    );
+  }
 }
 
-// Fallback to placeholder during build/static analysis to prevent build-time crashes
+// Fallback only supports build/static analysis and local misconfiguration screens.
 export const supabase = createClient(
   supabaseUrl || "https://placeholder-project.supabase.co",
   supabaseAnonKey || "placeholder-anon-key",

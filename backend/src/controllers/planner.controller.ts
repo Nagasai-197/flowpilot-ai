@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { PlannerService } from "../services/planner.service.js";
-import { UnauthorizedError } from "../utils/errors.js";
+import { BadRequestError, UnauthorizedError } from "../utils/errors.js";
 
 export class PlannerController {
   /**
@@ -42,6 +42,10 @@ export class PlannerController {
     }
 
     const { date } = req.query;
+
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+      return next(new BadRequestError("date must use YYYY-MM-DD format"));
+    }
 
     try {
       const plan = await PlannerService.getCurrentPlanForUser(userId, date as string);

@@ -108,7 +108,7 @@ function ProgressPage() {
       (acc: number, g: any) => acc + (g.milestones?.filter((m: any) => m.completed).length || 0),
       0,
     ),
-    reviewsCount: 1, // assume reflection unlocked on loading dashboard reviews count
+    reviewsCount: copilotSummary?.reviewsCount ?? 0,
   };
 
   // Focus Session Weekly Breakdown
@@ -147,7 +147,11 @@ function ProgressPage() {
   const adherenceData = [
     { name: "Task Rate", completed: successScore, planned: 100 },
     { name: "Habits", completed: habitConsistency, planned: 100 },
-    { name: "Planner", completed: scheduleCount > 0 ? 85 : 0, planned: 100 },
+    {
+      name: "Planner",
+      completed: scheduleCount > 0 ? (scores.focusAdherence ?? 0) : 0,
+      planned: 100,
+    },
   ];
 
   // GitHub-style Heatmap Grid Array (past 12 weeks, 7 days per week)

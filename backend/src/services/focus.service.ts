@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase.js";
 import { logger } from "../utils/logger.js";
+import { AppError } from "../utils/errors.js";
 
 export interface FocusSessionPayload {
   task_id?: string;
@@ -33,35 +34,12 @@ export class FocusService {
         .single();
 
       if (error) {
-        // Fallback-safe db tracking: log and return fallback if table not found
-        if (
-          error.code === "PGRST116" ||
-          error.message?.includes("relation") ||
-          error.message?.includes("does not exist")
-        ) {
-          logger.warn(
-            `focus_sessions table not found in Supabase. Falling back to local-only API response.`,
-          );
-          return {
-            id: "local_mock_" + Math.random().toString(36).substr(2, 9),
-            user_id: userId,
-            ...payload,
-            created_at: new Date().toISOString(),
-          };
-        }
-        throw error;
+        throw new AppError(`Failed to log focus session: ${error.message}`, 500);
       }
       return data;
     } catch (err: any) {
-      logger.warn(
-        `Failed to insert focus session into database: ${err.message}. Returning mock response.`,
-      );
-      return {
-        id: "local_mock_" + Math.random().toString(36).substr(2, 9),
-        user_id: userId,
-        ...payload,
-        created_at: new Date().toISOString(),
-      };
+      if (err instanceof AppError) throw err;
+      throw new AppError(`Failed to log focus session: ${err.message}`, 500);
     }
   }
 

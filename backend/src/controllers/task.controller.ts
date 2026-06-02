@@ -153,6 +153,40 @@ export class TaskController {
   }
 
   /**
+   * Compatibility endpoint for toggling task completion from focus flows.
+   */
+  static async toggleTaskCompletion(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return next(new UnauthorizedError());
+    }
+
+    const completed =
+      typeof req.body.completed === "boolean" ? req.body.completed : req.body.status === "done";
+
+    try {
+      const task = await TaskService.updateTaskForUser(id, userId, {
+        status: completed ? "done" : "todo",
+      });
+
+      res.status(200).json({
+        status: "success",
+        data: {
+          task,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Deletes an existing task
    */
   static async deleteTask(req: Request, res: Response, next: NextFunction): Promise<void> {

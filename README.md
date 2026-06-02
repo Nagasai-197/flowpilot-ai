@@ -118,7 +118,7 @@ Create a `.env` file at the project root containing:
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anonymous_api_key
-VITE_API_URL=http://localhost:8080/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ### Backend Setup (`/backend` root)
@@ -127,7 +127,7 @@ Create a `.env` file inside the `/backend` folder containing:
 
 ```env
 NODE_ENV=development
-PORT=8080
+PORT=5000
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 GEMINI_API_KEY=your_google_gemini_api_key
@@ -181,7 +181,7 @@ In the `/backend` folder:
 npm run dev
 ```
 
-_The backend core engine will boot on port `8080`._
+_The backend core engine will boot on port `5000`._
 
 ### 2. Start the Vite Frontend Client
 
