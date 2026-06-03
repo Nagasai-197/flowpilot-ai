@@ -18,6 +18,7 @@ export class AssistantService {
     userId: string,
     message: string,
     _history: { role: "user" | "model"; parts: { text: string }[] }[] = [],
+    events: any[] = [],
   ): Promise<AIAssistantResponse> {
     try {
       const todayStr = new Date().toISOString().split("T")[0];
@@ -116,6 +117,7 @@ export class AssistantService {
         focusStats,
         focusSessions,
         milestones,
+        events,
       );
 
       // Fetch, append user prompt and update planner summary in session memory

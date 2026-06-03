@@ -24,7 +24,6 @@ const items = [
   { to: "/app/goals", label: "Goals", icon: Target },
   { to: "/app/planner", label: "AI Planner", icon: Brain },
   { to: "/app/tasks", label: "Tasks", icon: CheckSquare },
-  { to: "/app/progress", label: "Progress", icon: BarChart3 },
   { to: "/app/coach", label: "AI Coach", icon: Bot },
   { to: "/app/review", label: "Review", icon: Repeat },
   { to: "/app/settings", label: "Settings", icon: Settings },

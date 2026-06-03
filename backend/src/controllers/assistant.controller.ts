@@ -12,14 +12,14 @@ export class AssistantController {
       return next(new UnauthorizedError());
     }
 
-    const { message, history } = req.body;
+    const { message, history, events } = req.body;
 
     if (!message) {
       return next(new BadRequestError("Chat prompt message is required"));
     }
 
     try {
-      const response = await AssistantService.processChat(userId, message, history || []);
+      const response = await AssistantService.processChat(userId, message, history || [], events);
       res.status(200).json({
         status: "success",
         data: response,

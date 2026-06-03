@@ -53,6 +53,7 @@ export function usePlanner(targetDate?: string) {
         preferredDeepWorkDuration,
         breakDuration,
         currentTime: new Date().toISOString(),
+        events: JSON.parse(localStorage.getItem("fp_events") || "[]"),
       });
     },
     onSuccess: () => {
@@ -120,6 +121,7 @@ export function usePlanner(targetDate?: string) {
     isError: currentPlanQuery.isError,
     error: currentPlanQuery.error,
     generatePlan: generatePlanMutation.mutate,
+    generatePlanAsync: generatePlanMutation.mutateAsync,
     createBlock: createBlockMutation.mutateAsync,
     updateBlock: updateBlockMutation.mutateAsync,
     deleteBlock: deleteBlockMutation.mutateAsync,

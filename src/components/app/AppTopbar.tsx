@@ -152,7 +152,6 @@ export function AppTopbar({
     { label: "Go to Goals", to: "/app/goals" },
     { label: "Go to Planner", to: "/app/planner" },
     { label: "Go to Tasks", to: "/app/tasks" },
-    { label: "Go to Progress", to: "/app/progress" },
     { label: "Go to AI Coach", to: "/app/coach" },
     { label: "Go to Review Reflection", to: "/app/review" },
   ];

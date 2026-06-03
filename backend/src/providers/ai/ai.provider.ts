@@ -7,6 +7,7 @@ export interface AIPlanRequest {
   preferredDeepWorkDuration?: number;
   breakDuration?: number;
   offsetStr?: string;
+  events?: any[];
 }
 
 export interface AIScheduleBlock {

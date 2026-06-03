@@ -117,6 +117,7 @@ const assistantSchema = z.object({
     .min(1, "Message cannot be empty")
     .max(500, "Assistant message exceeds maximum limit of 500 characters"),
   history: z.array(z.any()).optional().default([]),
+  events: z.array(z.any()).optional(),
 });
 
 const plannerGenerateSchema = z.object({
@@ -132,6 +133,7 @@ const plannerGenerateSchema = z.object({
       message: "Invalid currentTime format",
     })
     .optional(),
+  events: z.array(z.any()).optional(),
 });
 
 const plannerBlockBaseSchema = z.object({

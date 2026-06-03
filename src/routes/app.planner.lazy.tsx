@@ -281,7 +281,7 @@ function Planner() {
     recommendations,
     isLoading,
     isGenerating,
-    generatePlan,
+    generatePlanAsync,
     createBlock,
     updateBlock,
     deleteBlock,
@@ -373,18 +373,10 @@ function Planner() {
       : 15;
 
     toast.promise(
-      new Promise((resolve, reject) => {
-        generatePlan(
-          {
-            targetDate: selectedDate,
-            preferredDeepWorkDuration: prefDeepWork,
-            breakDuration: prefBreak,
-          },
-          {
-            onSuccess: () => resolve("Plan updated"),
-            onError: (err) => reject(err),
-          },
-        );
+      generatePlanAsync({
+        targetDate: selectedDate,
+        preferredDeepWorkDuration: prefDeepWork,
+        breakDuration: prefBreak,
       }),
       {
         loading: `Generating customized AI schedule for ${selectedDate === todayStr ? "today" : "tomorrow"}...`,

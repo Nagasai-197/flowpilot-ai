@@ -79,7 +79,7 @@ function ReviewPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reviews"] });
       queryClient.invalidateQueries({ queryKey: ["copilot"] });
-      toast.success("Reflection Journal submitted to archive! (+50 XP) 🏆");
+      toast.success("Reflection Journal submitted to archive! 🏆");
 
       // Reset form
       setDraftResult(null);
@@ -188,7 +188,7 @@ function ReviewPage() {
                 </div>
 
                 <form onSubmit={handleGenerateDraft} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <label className="block">
                       <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
                         Review Type
@@ -201,15 +201,6 @@ function ReviewPage() {
                         <option value="weekly">Weekly Reflection</option>
                         <option value="monthly">Monthly Reflection</option>
                       </select>
-                    </label>
-
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                        Outcome Multiplier
-                      </span>
-                      <div className="w-full rounded-xl border border-dashed border-primary/20 bg-primary/5 px-3 py-2 text-center text-xs font-bold text-primary">
-                        +50 XP Reward
-                      </div>
                     </label>
                   </div>
 
@@ -371,7 +362,7 @@ function ReviewPage() {
                           </>
                         ) : (
                           <>
-                            Submit Review (+50 XP) <ArrowRight className="h-3.5 w-3.5" />
+                            Submit Review <ArrowRight className="h-3.5 w-3.5" />
                           </>
                         )}
                       </button>
@@ -470,7 +461,7 @@ function ReviewPage() {
                 <h2 className="font-semibold text-base">Archive empty</h2>
                 <p className="text-xs text-muted-foreground max-w-xs mt-1.5 mx-auto">
                   No weekly or monthly reflection journals completed yet. Start your first session
-                  to claim dynamic XP rewards!
+                  to submit a reflection!
                 </p>
               </div>
             ) : (

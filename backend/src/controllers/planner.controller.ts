@@ -12,7 +12,7 @@ export class PlannerController {
       return next(new UnauthorizedError());
     }
 
-    const { date, preferredDeepWorkDuration, breakDuration, currentTime } = req.body;
+    const { date, preferredDeepWorkDuration, breakDuration, currentTime, events } = req.body;
 
     try {
       const plan = await PlannerService.generatePlanForUser(
@@ -21,6 +21,7 @@ export class PlannerController {
         preferredDeepWorkDuration,
         breakDuration,
         currentTime,
+        events,
       );
       res.status(200).json({
         status: "success",

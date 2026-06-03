@@ -16,6 +16,7 @@ export class PlannerService {
     preferredDeepWorkDuration?: number,
     breakDuration?: number,
     currentTime?: string,
+    events?: any[],
   ) {
     const targetDateStr = dateStr || new Date().toISOString().split("T")[0];
 
@@ -204,22 +205,115 @@ export class PlannerService {
       const tasks = await TaskService.getTasksForUser(userId);
       const habits = await HabitService.getHabitsForUser(userId);
 
-      // Sort tasks by priority (high → med → low) then by due date (soonest first)
-      const PRIORITY_ORDER: Record<string, number> = { high: 0, med: 1, medium: 1, low: 2 };
+      // Fetch related data for urgency scoring
+      let goals: any[] = [];
+      let completedTasks: any[] = [];
+      try {
+        const { data: goalsData } = await supabase
+          .from("goals")
+          .select("id, progress, target_date")
+          .eq("user_id", userId);
+        goals = goalsData || [];
+      } catch (goalsErr) {
+        logger.warn(`Failed to fetch goals in PlannerService: ${goalsErr}`);
+      }
+
+      try {
+        const { data: completedData } = await supabase
+          .from("tasks")
+          .select("tag")
+          .eq("user_id", userId)
+          .eq("status", "done")
+          .limit(100);
+        completedTasks = completedData || [];
+      } catch (tasksErr) {
+        logger.warn(`Failed to fetch completed tasks in PlannerService: ${tasksErr}`);
+      }
+
+      const goalsMap = new Map(goals.map((g) => [g.id, g]));
+      const tagCompletionCounts = new Map<string, number>();
+      completedTasks.forEach((t) => {
+        if (t.tag) {
+          tagCompletionCounts.set(t.tag, (tagCompletionCounts.get(t.tag) || 0) + 1);
+        }
+      });
+
+      // Urgency Scoring Logic:
+      // - 40% Due Date Proximity: Overdue tasks get maximum weight (100). Tasks due today get 95. Tasks due tomorrow get 80.
+      // - 30% Goal Importance: Goal target date proximity and progress (100 - progress) determine urgency of the linked goal.
+      // - 20% Priority: High priority tasks get 100, medium get 60, low get 20.
+      // - 10% Completion Pattern: User completion history for the specific task tag.
+      const getUrgencyScore = (task: any) => {
+        // A. Due Date Score (40% weight) - Max 100 points
+        let dueDateScore = 50; // Default fallback if no due date
+        if (task.due_date) {
+          const today = new Date(targetDateStr);
+          const dueDate = new Date(task.due_date.split("T")[0]);
+          const timeDiff = dueDate.getTime() - today.getTime();
+          const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+          if (daysDiff < 0) {
+            dueDateScore = 100; // Overdue
+          } else if (daysDiff === 0) {
+            dueDateScore = 95; // Due today
+          } else if (daysDiff === 1) {
+            dueDateScore = 80; // Due tomorrow
+          } else if (daysDiff <= 3) {
+            dueDateScore = 65;
+          } else if (daysDiff <= 7) {
+            dueDateScore = 40;
+          } else {
+            dueDateScore = 20;
+          }
+        }
+
+        // B. Goal Importance Score (30% weight) - Max 100 points
+        let goalImportanceScore = 50; // Default if not linked to a goal
+        if (task.goal_id && goalsMap.has(task.goal_id)) {
+          const goal = goalsMap.get(task.goal_id)!;
+          const progress = goal.progress || 0;
+          const progressFactor = 100 - progress; // lower progress -> higher urgency
+
+          let deadlineFactor = 50; // fallback if no goal target date
+          if (goal.target_date) {
+            const today = new Date(targetDateStr);
+            const targetDate = new Date(goal.target_date.split("T")[0]);
+            const timeDiff = targetDate.getTime() - today.getTime();
+            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+            if (daysDiff < 0) deadlineFactor = 100;
+            else if (daysDiff <= 7) deadlineFactor = 90;
+            else if (daysDiff <= 30) deadlineFactor = 70;
+            else deadlineFactor = 40;
+          }
+          goalImportanceScore = Math.round(progressFactor * 0.5 + deadlineFactor * 0.5);
+        }
+
+        // C. Priority Score (20% weight) - Max 100 points
+        let priorityScore = 20; // default low
+        if (task.priority === "high") priorityScore = 100;
+        else if (task.priority === "medium" || task.priority === "med") priorityScore = 60;
+
+        // D. Completion Pattern Score (10% weight) - Max 100 points
+        let completionPatternScore = 50; // default
+        if (task.tag && tagCompletionCounts.has(task.tag)) {
+          const count = tagCompletionCounts.get(task.tag) || 0;
+          completionPatternScore = Math.min(100, 50 + count * 10);
+        }
+
+        const finalScore =
+          dueDateScore * 0.4 +
+          goalImportanceScore * 0.3 +
+          priorityScore * 0.2 +
+          completionPatternScore * 0.1;
+
+        return Math.round(finalScore);
+      };
+
       const activeTasks = [...tasks]
         .filter((t) => t.status !== "done")
-        .sort((a, b) => {
-          const pa = PRIORITY_ORDER[a.priority] ?? 3;
-          const pb = PRIORITY_ORDER[b.priority] ?? 3;
-          if (pa !== pb) return pa - pb;
-          const today = targetDateStr;
-          const aDueToday = a.due_date?.split("T")[0] === today ? 0 : 1;
-          const bDueToday = b.due_date?.split("T")[0] === today ? 0 : 1;
-          if (aDueToday !== bDueToday) return aDueToday - bDueToday;
-          const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          return aDate - bDate;
-        })
+        .map((t) => ({ ...t, urgencyScore: getUrgencyScore(t) }))
+        .sort((a, b) => b.urgencyScore - a.urgencyScore)
         .slice(0, 8); // Cap at 8 tasks for focused, deep-work-friendly schedule
 
       // 3. Request AI generation using swappable provider abstraction
@@ -235,6 +329,7 @@ export class PlannerService {
             priority: t.priority,
             status: t.status,
             due_date: t.due_date || null,
+            urgencyScore: t.urgencyScore,
           })),
           habits: habits.map((h) => ({ id: h.id, name: h.name, color: h.color, streak: h.streak })),
           workingHoursStart: effectiveStart,
@@ -243,6 +338,7 @@ export class PlannerService {
           preferredDeepWorkDuration: deepWorkDuration,
           breakDuration: breakDur,
           offsetStr,
+          events,
         });
       } catch (err: any) {
         logger.error(`AI Planner Provider execution error: ${err.message}`);

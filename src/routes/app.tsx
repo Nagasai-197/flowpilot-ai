@@ -33,11 +33,11 @@ const titles: Record<string, string> = {
   "/app/goals": "Goals",
   "/app/planner": "AI Planner",
   "/app/tasks": "Tasks",
-  "/app/progress": "Progress",
   "/app/coach": "AI Coach",
   "/app/review": "Review Reflection",
   "/app/settings": "Settings",
 };
+
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
@@ -122,9 +122,16 @@ function AppLayout() {
       toast.success("Focus Mode activated! Distractions silenced. 🧘");
     };
 
+    const handleOpenTaskModal = () => {
+      setIsTaskModalOpen(true);
+    };
+
     window.addEventListener("start-focus-session", handleStartFocus as EventListener);
-    return () =>
+    window.addEventListener("open-task-modal", handleOpenTaskModal);
+    return () => {
       window.removeEventListener("start-focus-session", handleStartFocus as EventListener);
+      window.removeEventListener("open-task-modal", handleOpenTaskModal);
+    };
   }, []);
 
   useEffect(() => {

@@ -16,7 +16,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppTasksRouteImport } from './routes/app.tasks'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppReviewRouteImport } from './routes/app.review'
-import { Route as AppProgressRouteImport } from './routes/app.progress'
 import { Route as AppPlannerRouteImport } from './routes/app.planner'
 import { Route as AppGoalsRouteImport } from './routes/app.goals'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
@@ -58,11 +57,6 @@ const AppReviewRoute = AppReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => AppRoute,
 } as any).lazy(() => import('./routes/app.review.lazy').then((d) => d.Route))
-const AppProgressRoute = AppProgressRouteImport.update({
-  id: '/progress',
-  path: '/progress',
-  getParentRoute: () => AppRoute,
-} as any).lazy(() => import('./routes/app.progress.lazy').then((d) => d.Route))
 const AppPlannerRoute = AppPlannerRouteImport.update({
   id: '/planner',
   path: '/planner',
@@ -99,7 +93,6 @@ export interface FileRoutesByFullPath {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/planner': typeof AppPlannerRoute
-  '/app/progress': typeof AppProgressRoute
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
@@ -114,7 +107,6 @@ export interface FileRoutesByTo {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/planner': typeof AppPlannerRoute
-  '/app/progress': typeof AppProgressRoute
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
@@ -130,7 +122,6 @@ export interface FileRoutesById {
   '/app/dashboard': typeof AppDashboardRoute
   '/app/goals': typeof AppGoalsRoute
   '/app/planner': typeof AppPlannerRoute
-  '/app/progress': typeof AppProgressRoute
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/tasks': typeof AppTasksRoute
@@ -147,7 +138,6 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/goals'
     | '/app/planner'
-    | '/app/progress'
     | '/app/review'
     | '/app/settings'
     | '/app/tasks'
@@ -162,7 +152,6 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/goals'
     | '/app/planner'
-    | '/app/progress'
     | '/app/review'
     | '/app/settings'
     | '/app/tasks'
@@ -177,7 +166,6 @@ export interface FileRouteTypes {
     | '/app/dashboard'
     | '/app/goals'
     | '/app/planner'
-    | '/app/progress'
     | '/app/review'
     | '/app/settings'
     | '/app/tasks'
@@ -242,13 +230,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppReviewRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/progress': {
-      id: '/app/progress'
-      path: '/progress'
-      fullPath: '/app/progress'
-      preLoaderRoute: typeof AppProgressRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/planner': {
       id: '/app/planner'
       path: '/planner'
@@ -292,7 +273,6 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppGoalsRoute: typeof AppGoalsRoute
   AppPlannerRoute: typeof AppPlannerRoute
-  AppProgressRoute: typeof AppProgressRoute
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTasksRoute: typeof AppTasksRoute
@@ -303,7 +283,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppGoalsRoute: AppGoalsRoute,
   AppPlannerRoute: AppPlannerRoute,
-  AppProgressRoute: AppProgressRoute,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTasksRoute: AppTasksRoute,

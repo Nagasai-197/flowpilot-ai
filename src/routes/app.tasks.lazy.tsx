@@ -15,6 +15,11 @@ import {
   Loader2,
   Check,
   Brain,
+  AlertCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -49,6 +54,12 @@ export const Route = createLazyFileRoute("/app/tasks")({
 
 function Tasks() {
   const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
+
+  // Accordion expanded states for due-date sections
+  const [isOverdueExpanded, setIsOverdueExpanded] = useState(true);
+  const [isTodayExpanded, setIsTodayExpanded] = useState(true);
+  const [isUpcomingExpanded, setIsUpcomingExpanded] = useState(false);
+  const [isCompletedExpanded, setIsCompletedExpanded] = useState(false);
   const {
     tasks,
     isLoading,
@@ -61,6 +72,21 @@ function Tasks() {
   } = useTasks();
 
   const { goals } = useGoals();
+
+  // Collapsible due-date sections state
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    overdue: true,
+    today: true,
+    upcoming: false,
+    completed: false,
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +122,9 @@ function Tasks() {
   const [breakdownSubtasks, setBreakdownSubtasks] = useState<
     { title: string; estimated_minutes: number; completed?: boolean }[]
   >([]);
+  const [editingSubtaskIdx, setEditingSubtaskIdx] = useState<number | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState("");
+  const [isSaved, setIsSaved] = useState(false);
 
   // Drag Overlay active ID state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -239,8 +268,27 @@ function Tasks() {
     setEditTask(null);
   };
 
+  const BREAKDOWN_STORAGE_KEY = (taskId: string) => `fp_breakdown_${taskId}`;
+
   const handleOpenBreakdown = async (t: Task) => {
     setActiveBreakdownTask(t);
+    setEditingSubtaskIdx(null);
+    setIsSaved(false);
+
+    // Load from localStorage first
+    const saved = localStorage.getItem(BREAKDOWN_STORAGE_KEY(t.id));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setBreakdownSubtasks(parsed);
+        setIsSaved(true);
+        return; // Don't regenerate
+      } catch {
+        // ignore parse error, fall through to AI
+      }
+    }
+
+    // No saved data — call AI
     setIsBreakdownLoading(true);
     setBreakdownSubtasks([]);
     try {
@@ -274,10 +322,69 @@ function Tasks() {
     }
   };
 
-  const handleToggleSubtask = (idx: number) => {
-    setBreakdownSubtasks((prev) =>
-      prev.map((st, i) => (i === idx ? { ...st, completed: !st.completed } : st)),
+  const handleSaveBreakdown = () => {
+    if (!activeBreakdownTask) return;
+    localStorage.setItem(
+      BREAKDOWN_STORAGE_KEY(activeBreakdownTask.id),
+      JSON.stringify(breakdownSubtasks),
     );
+    setIsSaved(true);
+    toast.success("Breakdown saved! It will load automatically next time.");
+  };
+
+  const handleRefreshBreakdown = async () => {
+    if (!activeBreakdownTask) return;
+    localStorage.removeItem(BREAKDOWN_STORAGE_KEY(activeBreakdownTask.id));
+    setIsSaved(false);
+    setIsBreakdownLoading(true);
+    setBreakdownSubtasks([]);
+    try {
+      const res = await api.post(`/tasks/${activeBreakdownTask.id}/breakdown`);
+      if (res.data && res.data.subtasks) {
+        setBreakdownSubtasks(res.data.subtasks.map((st: any) => ({ ...st, completed: false })));
+      }
+    } catch {
+      toast.error("AI refresh failed.");
+    } finally {
+      setIsBreakdownLoading(false);
+    }
+  };
+
+  const handleToggleSubtask = (idx: number) => {
+    setBreakdownSubtasks((prev) => {
+      const next = prev.map((st, i) => (i === idx ? { ...st, completed: !st.completed } : st));
+      // Auto-save on toggle if already saved
+      if (isSaved && activeBreakdownTask) {
+        localStorage.setItem(BREAKDOWN_STORAGE_KEY(activeBreakdownTask.id), JSON.stringify(next));
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteSubtask = (idx: number) => {
+    setBreakdownSubtasks((prev) => prev.filter((_, i) => i !== idx));
+    setIsSaved(false);
+  };
+
+  const handleAddSubtask = () => {
+    setBreakdownSubtasks((prev) => [
+      ...prev,
+      { title: "New subtask", estimated_minutes: 15, completed: false },
+    ]);
+    setIsSaved(false);
+    // Open inline edit for the new item
+    setEditingSubtaskIdx(breakdownSubtasks.length);
+    setEditingSubtaskTitle("New subtask");
+  };
+
+  const handleCommitEdit = (idx: number) => {
+    if (!editingSubtaskTitle.trim()) return;
+    setBreakdownSubtasks((prev) =>
+      prev.map((st, i) => (i === idx ? { ...st, title: editingSubtaskTitle.trim() } : st)),
+    );
+    setEditingSubtaskIdx(null);
+    setEditingSubtaskTitle("");
+    setIsSaved(false);
   };
 
   // Filter task list dynamically based on search query & priority dropdown
@@ -454,6 +561,24 @@ function Tasks() {
     );
   }
 
+  const todayStr = new Date().toISOString().split("T")[0];
+  const overdueTasks = tasks.filter(
+    (t) => t.status !== "done" && t.due_date && t.due_date.split("T")[0] < todayStr,
+  );
+  const dueTodayTasks = tasks.filter(
+    (t) => t.status !== "done" && t.due_date && t.due_date.split("T")[0] === todayStr,
+  );
+  const upcomingTasks = tasks.filter(
+    (t) => t.status !== "done" && t.due_date && t.due_date.split("T")[0] > todayStr,
+  );
+  const completedTasks = tasks.filter((t) => t.status === "done");
+
+  const getGoalTitle = (goalId?: string) => {
+    if (!goalId) return null;
+    const goal = goals.find((g) => g.id === goalId);
+    return goal ? goal.title : null;
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -514,6 +639,132 @@ function Tasks() {
             <Plus className="h-3.5 w-3.5" /> Add task
           </button>
         </div>
+      </div>
+
+      {/* Task Due-Date Sections Overview */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          {
+            id: "overdue",
+            title: "Overdue",
+            textColor: "text-red-600 dark:text-red-400 font-bold",
+            badgeClass: "bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400",
+            emoji: "🔥",
+            tasks: overdueTasks,
+          },
+          {
+            id: "today",
+            title: "Due Today",
+            textColor: "text-amber-600 dark:text-amber-400 font-bold",
+            badgeClass:
+              "bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400",
+            emoji: "📅",
+            tasks: dueTodayTasks,
+          },
+          {
+            id: "upcoming",
+            title: "Upcoming",
+            textColor: "text-sky-600 dark:text-sky-400 font-bold",
+            badgeClass: "bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400",
+            emoji: "⏳",
+            tasks: upcomingTasks,
+          },
+          {
+            id: "completed",
+            title: "Completed",
+            textColor: "text-emerald-600 dark:text-emerald-400 font-bold",
+            badgeClass:
+              "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+            emoji: "✅",
+            tasks: completedTasks,
+          },
+        ].map((sec) => {
+          const isExpanded = expandedSections[sec.id];
+          return (
+            <div
+              key={sec.id}
+              className="rounded-3xl border border-border/60 bg-card p-4 shadow-soft space-y-3"
+            >
+              <button
+                onClick={() => toggleSection(sec.id)}
+                className="flex w-full items-center justify-between font-display text-sm cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{sec.emoji}</span>
+                  <span className={sec.textColor}>{sec.title}</span>
+                  <span
+                    className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold", sec.badgeClass)}
+                  >
+                    {sec.tasks.length}
+                  </span>
+                </div>
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+
+              <AnimatePresence initial={false}>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    {sec.tasks.length === 0 ? (
+                      <div className="py-6 text-center text-xs text-muted-foreground italic bg-secondary/10 rounded-2xl border border-border/30">
+                        No tasks
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                        {sec.tasks.map((task) => {
+                          const goalTitle = getGoalTitle(task.goal_id);
+                          return (
+                            <div
+                              key={task.id}
+                              onClick={() => openEdit(task)}
+                              className="group relative flex flex-col gap-1.5 rounded-2xl border border-border/40 bg-secondary/25 p-3 hover:bg-secondary/40 transition-all cursor-pointer hover:border-primary/20"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                                  {task.title}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide",
+                                    task.priority === "high"
+                                      ? "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
+                                      : task.priority === "med"
+                                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20",
+                                  )}
+                                >
+                                  {task.priority === "med" ? "medium" : task.priority}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 text-[9px] text-muted-foreground font-medium">
+                                <span>
+                                  {task.due_date ? task.due_date.split("T")[0] : "No due date"}
+                                </span>
+                                {goalTitle && (
+                                  <span className="truncate max-w-[120px] font-bold text-violet-600 dark:text-violet-400 bg-violet-500/5 border border-violet-500/10 rounded-full px-1.5 py-0.5">
+                                    🎯 {goalTitle}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
 
       <div className="rounded-2xl border border-border/60 bg-gradient-to-r from-primary/5 via-[oklch(0.85_0.08_220)]/15 to-[oklch(0.85_0.08_160)]/15 px-4 py-3 text-sm">
@@ -1091,60 +1342,188 @@ function Tasks() {
                       No subtasks generated.
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       {breakdownSubtasks.map((st, idx) => (
                         <div
                           key={idx}
                           className={cn(
-                            "flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-200 select-none",
+                            "rounded-2xl border transition-all duration-200",
                             st.completed
                               ? "bg-secondary/40 border-border/40 opacity-70"
                               : "bg-card border-border/60 hover:shadow-soft",
                           )}
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={st.completed}
-                              onChange={() => handleToggleSubtask(idx)}
-                              className="rounded border-border text-primary outline-none accent-primary shrink-0 cursor-pointer h-4.5 w-4.5"
-                            />
-                            <span
-                              className={cn(
-                                "text-xs font-medium text-foreground leading-snug",
-                                st.completed && "line-through text-muted-foreground",
-                              )}
-                            >
-                              {st.title}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-muted-foreground bg-secondary/80 border border-border/40 px-2 py-0.5 rounded-full shrink-0 ml-3 font-mono">
-                            ⏱️ {st.estimated_minutes} min
-                          </span>
+                          {editingSubtaskIdx === idx ? (
+                            <div className="flex items-center gap-2 p-3">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={editingSubtaskTitle}
+                                onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleCommitEdit(idx);
+                                  if (e.key === "Escape") {
+                                    setEditingSubtaskIdx(null);
+                                    setEditingSubtaskTitle("");
+                                  }
+                                }}
+                                className="flex-1 rounded-lg border border-primary/40 bg-background px-2 py-1 text-xs outline-none"
+                              />
+                              <button
+                                onClick={() => handleCommitEdit(idx)}
+                                className="rounded-lg bg-primary px-2.5 py-1 text-[10px] font-bold text-primary-foreground cursor-pointer"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingSubtaskIdx(null);
+                                  setEditingSubtaskTitle("");
+                                }}
+                                className="rounded-lg border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground cursor-pointer hover:bg-secondary"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-start gap-2.5 p-3">
+                              <input
+                                type="checkbox"
+                                checked={st.completed}
+                                onChange={() => handleToggleSubtask(idx)}
+                                className="rounded border-border text-primary outline-none accent-primary shrink-0 cursor-pointer h-4 w-4 mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <span
+                                  className={cn(
+                                    "text-xs font-medium text-foreground leading-snug block",
+                                    st.completed && "line-through text-muted-foreground",
+                                  )}
+                                >
+                                  {st.title}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  ⏱ {st.estimated_minutes} min
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {/* Start Focus from subtask */}
+                                <button
+                                  onClick={() => {
+                                    window.dispatchEvent(
+                                      new CustomEvent("start-focus-session", {
+                                        detail: {
+                                          type: "pomodoro",
+                                          taskTitle: st.title,
+                                          taskId: activeBreakdownTask?.id,
+                                        },
+                                      }),
+                                    );
+                                    toast.info(`Focus: "${st.title}"`);
+                                  }}
+                                  className="p-1 rounded-lg text-pink-500 hover:bg-pink-500/10 cursor-pointer transition-colors"
+                                  title="Start Focus"
+                                >
+                                  <Brain className="h-3.5 w-3.5" />
+                                </button>
+                                {/* Edit subtask */}
+                                <button
+                                  onClick={() => {
+                                    setEditingSubtaskIdx(idx);
+                                    setEditingSubtaskTitle(st.title);
+                                  }}
+                                  className="p-1 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                {/* Delete subtask */}
+                                <button
+                                  onClick={() => handleDeleteSubtask(idx)}
+                                  className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 cursor-pointer transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
+
+                      {/* Add Subtask row */}
+                      <button
+                        onClick={handleAddSubtask}
+                        className="w-full flex items-center gap-2 text-xs text-muted-foreground hover:text-primary border border-dashed border-border/60 hover:border-primary/40 rounded-2xl px-3.5 py-2.5 cursor-pointer transition-all"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add subtask
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Drawer Footer */}
-              <div className="border-t border-border/40 pt-4 mt-6 flex items-center justify-between">
-                <div className="text-[10px] font-semibold text-muted-foreground">
-                  {breakdownSubtasks.length > 0 && (
-                    <>
-                      {breakdownSubtasks.filter((s) => s.completed).length} of{" "}
-                      {breakdownSubtasks.length} completed · Total est:{" "}
-                      {breakdownSubtasks.reduce((sum, s) => sum + s.estimated_minutes, 0)} min
-                    </>
-                  )}
+              {/* Drawer Footer — Progress + Save/Refresh */}
+              <div className="border-t border-border/40 pt-4 mt-4 space-y-3">
+                {/* Progress bar */}
+                {breakdownSubtasks.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-semibold text-muted-foreground">
+                      <span>
+                        {breakdownSubtasks.filter((s) => s.completed).length} /{" "}
+                        {breakdownSubtasks.length} completed
+                      </span>
+                      <span>
+                        {breakdownSubtasks.reduce((sum, s) => sum + s.estimated_minutes, 0)} min
+                        total
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-500"
+                        style={{
+                          width: `${
+                            breakdownSubtasks.length === 0
+                              ? 0
+                              : (breakdownSubtasks.filter((s) => s.completed).length /
+                                  breakdownSubtasks.length) *
+                                100
+                          }%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleRefreshBreakdown}
+                    disabled={isBreakdownLoading}
+                    className="flex items-center gap-1.5 rounded-full border border-border px-3 py-2 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 cursor-pointer transition-all disabled:opacity-40"
+                    title="Regenerate from AI"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    Refresh
+                  </button>
+                  <button
+                    onClick={handleSaveBreakdown}
+                    disabled={breakdownSubtasks.length === 0 || isSaved}
+                    className={cn(
+                      "flex-1 rounded-full px-4 py-2 text-[10px] font-semibold cursor-pointer transition-all",
+                      isSaved
+                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 cursor-default"
+                        : "bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-40",
+                    )}
+                  >
+                    {isSaved ? "✓ Saved" : "Save Breakdown"}
+                  </button>
+                  <button
+                    onClick={() => setActiveBreakdownTask(null)}
+                    className="rounded-full border border-border px-4 py-2 text-[10px] font-semibold text-muted-foreground hover:bg-secondary cursor-pointer"
+                  >
+                    Close
+                  </button>
                 </div>
-                <button
-                  onClick={() => setActiveBreakdownTask(null)}
-                  className="rounded-full bg-foreground px-5 py-2.5 text-xs font-medium text-background hover:opacity-90 cursor-pointer"
-                >
-                  Done
-                </button>
               </div>
             </motion.div>
           </div>

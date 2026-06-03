@@ -6,8 +6,7 @@ import {
   Target,
   Zap,
   Bot,
-  Brain,
-  ShieldAlert,
+  Lightbulb,
   Trash2,
   ArrowRight,
   Loader2,
@@ -44,6 +43,69 @@ const SUGGESTED_PROMPTS = [
   },
 ];
 
+function renderMarkdown(text: string) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  const formatInline = (line: string): React.ReactNode => {
+    // Handle **bold** and *italic*
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith("*") && part.endsWith("*")) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      return part;
+    });
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      elements.push(<div key={key++} className="h-2" />);
+    } else if (/^#{1,3}\s/.test(trimmed)) {
+      const level = trimmed.match(/^(#+)/)?.[1].length || 1;
+      const content = trimmed.replace(/^#+\s+/, "");
+      const cls =
+        level === 1
+          ? "text-sm font-bold text-foreground mt-2 mb-1"
+          : level === 2
+            ? "text-xs font-bold text-foreground mt-1.5 mb-0.5"
+            : "text-xs font-semibold text-primary mt-1";
+      elements.push(
+        <div key={key++} className={cls}>
+          {formatInline(content)}
+        </div>,
+      );
+    } else if (/^[-*]\s/.test(trimmed)) {
+      elements.push(
+        <div key={key++} className="flex items-start gap-1.5 text-xs leading-relaxed">
+          <span className="text-primary mt-0.5 shrink-0">•</span>
+          <span>{formatInline(trimmed.replace(/^[-*]\s+/, ""))}</span>
+        </div>,
+      );
+    } else if (/^\d+\.\s/.test(trimmed)) {
+      const num = trimmed.match(/^(\d+)\./)?.[1];
+      elements.push(
+        <div key={key++} className="flex items-start gap-1.5 text-xs leading-relaxed">
+          <span className="text-primary font-bold shrink-0 min-w-[16px]">{num}.</span>
+          <span>{formatInline(trimmed.replace(/^\d+\.\s+/, ""))}</span>
+        </div>,
+      );
+    } else {
+      elements.push(
+        <p key={key++} className="text-xs leading-relaxed">
+          {formatInline(trimmed)}
+        </p>,
+      );
+    }
+  }
+  return <div className="space-y-0.5">{elements}</div>;
+}
+
 function AICoachPage() {
   const { messages, sendMessage, confirmAction, cancelAction, isPending, clearHistory } =
     useAssistant();
@@ -60,13 +122,8 @@ function AICoachPage() {
   });
 
   const scores = copilotSummary?.scores || {};
-  const briefing = copilotSummary?.briefing || {};
-  const warnings = briefing.warnings || {
-    overdueCount: 0,
-    habitRisk: false,
-    plannerMissing: false,
-  };
-  const hasWarnings = warnings.overdueCount > 0 || warnings.habitRisk || warnings.plannerMissing;
+  const tasks = copilotSummary?.tasks || [];
+  const overdueCount = tasks.filter((t: any) => t.status !== "done" && t.due_date && new Date(t.due_date) < new Date()).length;
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -82,6 +139,26 @@ function AICoachPage() {
   const handlePillClick = (promptText: string) => {
     sendMessage(promptText);
   };
+
+  // Quick action: pre-fill and send a contextual prompt to the AI Coach
+  const handleQuickAction = (prompt: string) => {
+    sendMessage(prompt);
+    setInputText("");
+  };
+
+  // AI Insights derived from real task/score context
+  const aiInsights = [
+    overdueCount > 0
+      ? `⚠️ You have ${overdueCount} overdue task${overdueCount > 1 ? "s" : ""} blocking your progress.`
+      : "✅ No overdue tasks — great consistency!",
+    scores.habitConsistency !== undefined
+      ? scores.habitConsistency < 50
+        ? "📉 Habit consistency is below 50%. A quick review can help you reset."
+        : "🌱 Habit consistency is healthy. Keep your daily rituals going."
+      : "📊 Track daily habits to build long-term momentum.",
+    "🔁 Break your goals into focused 25-min blocks to stay in flow.",
+    "🧠 Protect your deep work windows — silence notifications during focus sessions.",
+  ];
 
   return (
     <div className="mx-auto max-w-7xl h-[calc(100vh-8.5rem)] flex flex-col lg:flex-row gap-6">
@@ -138,7 +215,7 @@ function AICoachPage() {
                           : "bg-primary text-primary-foreground border-transparent",
                       )}
                     >
-                      <p className="whitespace-pre-wrap font-medium">{msg.text}</p>
+                      {isAi ? renderMarkdown(msg.text) : <p className="font-medium">{msg.text}</p>}
                     </div>
 
                     {/* Interactive Action Confirmations */}
@@ -242,115 +319,53 @@ function AICoachPage() {
         </form>
       </div>
 
-      {/* Right Sidebar Diagnostics Engine */}
-      <div className="w-full lg:w-80 space-y-6 shrink-0">
-        {/* Productivity Warnings Engine Widget */}
+      {/* Right Sidebar */}
+      <div className="w-full lg:w-80 space-y-4 shrink-0">
+        {/* AI Insights Widget */}
         <div className="glass border border-border/60 rounded-3xl p-5 shadow-soft space-y-4">
-          <div className="flex items-center justify-between border-b border-border/40 pb-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-              <ShieldAlert className="h-4 w-4 text-primary shrink-0 animate-pulse" /> Diagnostics
-              Alert
+          <div className="flex items-center gap-2 border-b border-border/40 pb-2.5">
+            <Lightbulb className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-primary">
+              AI Insights
             </h2>
-            <span className="text-[8px] font-bold uppercase text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
-              Real-time
-            </span>
           </div>
-
-          <div className="space-y-2">
-            {!hasWarnings ? (
-              <div className="rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-3.5 space-y-1">
-                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  Workspace Optimized
-                </div>
-                <p className="text-[10px] text-muted-foreground/90">
-                  No cognitive bottleneck risks found. Keep tracking your active planner blocks!
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {warnings.overdueCount > 0 && (
-                  <div className="rounded-2xl bg-red-500/5 border border-red-500/10 p-3.5 space-y-1">
-                    <div className="text-xs font-bold text-red-500">Task Backlog Slipping</div>
-                    <p className="text-[10px] text-muted-foreground">
-                      {warnings.overdueCount} overdue tasks are dragging down your Today's Success
-                      Score. Complete them to restore balance.
-                    </p>
-                  </div>
-                )}
-                {warnings.habitRisk && (
-                  <div className="rounded-2xl bg-yellow-500/5 border border-yellow-500/10 p-3.5 space-y-1">
-                    <div className="text-xs font-bold text-yellow-600 dark:text-yellow-400">
-                      Streak Drop Alert
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Habit consistency dropped under 50% this week. Uncheck the status matrix
-                      blockers on your dashboard.
-                    </p>
-                  </div>
-                )}
-                {warnings.plannerMissing && (
-                  <div className="rounded-2xl bg-blue-500/5 border border-blue-500/10 p-3.5 space-y-1">
-                    <div className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                      Planner Omission
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      Today's schedule has no scheduled focus slots. Click "Generate Plan" in
-                      dashboard to build deep-work slots.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ul className="space-y-2.5">
+            {aiInsights.map((insight, i) => (
+              <li
+                key={i}
+                className="text-[11px] leading-relaxed text-foreground/80 bg-secondary/30 rounded-xl px-3 py-2"
+              >
+                {insight}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Life OS Balance Stats card */}
+        {/* Coach Quick Actions Widget */}
         <div className="glass border border-border/60 rounded-3xl p-5 shadow-soft space-y-4">
-          <div className="border-b border-border/40 pb-2.5">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-              <Brain className="h-4 w-4 text-primary shrink-0" /> OS Balance Metrics
+          <div className="flex items-center gap-2 border-b border-border/40 pb-2.5">
+            <Zap className="h-4 w-4 text-primary shrink-0" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-primary">
+              Quick Actions
             </h2>
           </div>
-
-          <div className="space-y-3">
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-semibold">
-                <span>AI Life Score</span>
-                <span>{scores.lifeScore ?? 0}/100</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full"
-                  style={{ width: `${scores.lifeScore ?? 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-semibold">
-                <span>Success Completion Rate</span>
-                <span>{scores.successScore ?? 0}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full"
-                  style={{ width: `${scores.successScore ?? 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1 font-semibold">
-                <span>Habit Consistency</span>
-                <span>{scores.habitConsistency ?? 0}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full bg-sky-500 rounded-full"
-                  style={{ width: `${scores.habitConsistency ?? 0}%` }}
-                />
-              </div>
-            </div>
+          <div className="space-y-2">
+            {[
+              { emoji: "📝", label: "What should I do today?", prompt: "Based on my tasks, goals, and schedule, what should I focus on today?" },
+              { emoji: "🚨", label: "Which goal is at risk?", prompt: "Which of my active goals is most at risk of falling behind, and why?" },
+              { emoji: "📊", label: "Analyze my habits", prompt: "Analyze my habit completion patterns and tell me what's working and what needs improvement." },
+              { emoji: "🩹", label: "Create recovery plan", prompt: "I feel behind on my goals. Help me create a realistic recovery plan for this week." },
+            ].map(({ emoji, label, prompt }) => (
+              <button
+                key={label}
+                onClick={() => handleQuickAction(prompt)}
+                className="w-full flex items-center gap-2.5 rounded-2xl border border-border/50 bg-card/50 hover:bg-secondary/60 hover:border-primary/30 px-3.5 py-2.5 text-left text-[11px] font-medium text-foreground/80 hover:text-foreground transition-all cursor-pointer group"
+              >
+                <span className="text-base shrink-0">{emoji}</span>
+                <span className="flex-1 leading-snug">{label}</span>
+                <ArrowRight className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+              </button>
+            ))}
           </div>
         </div>
       </div>

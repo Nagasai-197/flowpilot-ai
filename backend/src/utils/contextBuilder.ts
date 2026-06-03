@@ -132,6 +132,15 @@ export class ContextBuilder {
   }
 
   /**
+   * Compresses events list into a single string summary
+   */
+  static summarizeEvents(events: any[]): string {
+    if (!events || events.length === 0) return "No events scheduled.";
+    const summaries = events.map((e) => `'${e.title}' (${e.category}) at ${e.time} on ${e.date}`);
+    return `${events.length} events scheduled: ${summaries.join(", ")}.`;
+  }
+
+  /**
    * Unified context compiler mapping all resources
    */
   static build(
@@ -145,6 +154,7 @@ export class ContextBuilder {
     focusStats: any = null,
     focusSessions: any[] = [],
     milestones: any[] = [],
+    events: any[] = [],
   ) {
     return {
       tasksSummary: this.summarizeTasks(tasks),
@@ -153,6 +163,7 @@ export class ContextBuilder {
       analyticsSummary: this.summarizeAnalytics(stats),
       goalsSummary: this.summarizeGoals(goals, milestones, focusSessions, tasks),
       focusSummary: this.summarizeFocus(focusStats),
+      eventsSummary: this.summarizeEvents(events),
       workingHours: `${profile.workingHoursStart}-${profile.workingHoursEnd} (Timezone: ${profile.timezone})`,
     };
   }

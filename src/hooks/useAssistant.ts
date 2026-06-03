@@ -84,21 +84,21 @@ export function useAssistant() {
   const chatMutation = useMutation<
     { status: string; data: AIAssistantResponse },
     Error,
-    { message: string }
+    { message: string; events?: any[] }
   >({
     mutationFn: (payload) => api.post("/assistant/chat", payload),
     onSuccess: (res, variables) => {
       const text = res.data.text || res.data.message || "I could not compile a response.";
       const action = res.data.action;
 
-      // 1. Append user's original message and the AI reply
+      // Append user message and AI reply together
       setMessages((prev) => [
-        ...prev.filter((m) => m.text !== variables.message), // prevent duplicates
+        ...prev,
         { role: "user", text: variables.message },
         { role: "ai", text, action },
       ]);
 
-      // 2. If the AI Assistant triggered an immediate action, run it
+      // If the AI Assistant triggered an immediate action, run it
       if (action && !action.requiresConfirmation) {
         executeImmediateAction(action);
       }
@@ -107,11 +107,8 @@ export function useAssistant() {
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
-
-    // Optimistically add user's query
-    setMessages((prev) => [...prev, { role: "user", text }]);
-
-    chatMutation.mutate({ message: text });
+    const events = JSON.parse(localStorage.getItem("fp_events") || "[]");
+    chatMutation.mutate({ message: text, events });
   };
 
   const confirmAction = async (msgIndex: number, action: AIAssistantAction) => {

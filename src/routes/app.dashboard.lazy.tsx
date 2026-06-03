@@ -1,8 +1,7 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "framer-motion";
+import { createLazyFileRoute, Link } from '@tanstack/react-router'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles,
-  CheckCircle2,
   Flame,
   TrendingUp,
   ArrowUpRight,
@@ -10,8 +9,6 @@ import {
   Zap,
   Loader2,
   Award,
-  AlertTriangle,
-  ShieldAlert,
   Brain,
   Coffee,
   Target,
@@ -20,11 +17,21 @@ import {
   ClipboardList,
   Repeat,
   Plus,
+  ClipboardCheck,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Edit2,
+  Clock,
+  Pin,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { usePlanner } from "../hooks/usePlanner";
 import { useHabits } from "../hooks/useHabits";
 import { useGoals } from "../hooks/useGoals";
+import { useEvents } from "../hooks/useEvents";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { toast } from "sonner";
@@ -49,9 +56,22 @@ const TYPE_ICONS = {
 function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const { generatePlan, isGenerating } = usePlanner();
+  const { generatePlanAsync } = usePlanner();
   const { habits, toggleHabit, createHabit } = useHabits();
   const { createGoal } = useGoals();
+
+  // Calendar & Events states
+  const { events, addEvent, updateEvent, deleteEvent } = useEvents();
+  const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedDayStr, setSelectedDayStr] = useState(new Date().toISOString().split("T")[0]);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [eventTitle, setEventTitle] = useState("");
+  const [eventDesc, setEventDesc] = useState("");
+  const [eventTime, setEventTime] = useState("10:00");
+  const [eventCategory, setEventCategory] = useState<
+    "Exam" | "Interview" | "Meeting" | "Deadline" | "Personal"
+  >("Meeting");
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
 
   const [quickGoalOpen, setQuickGoalOpen] = useState(false);
   const [quickGoalTitle, setQuickGoalTitle] = useState("");
@@ -74,22 +94,14 @@ function Dashboard() {
   });
 
   const handleRegenerate = () => {
-    toast.promise(
-      new Promise((resolve, reject) => {
-        generatePlan(undefined, {
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["copilot"] });
-            resolve("Plan updated");
-          },
-          onError: (err) => reject(err),
-        });
-      }),
-      {
-        loading: "Optimizing schedule planner...",
-        success: "AI Schedule plan regenerated successfully! 📅",
-        error: "Failed to optimize schedule.",
+    toast.promise(generatePlanAsync(undefined), {
+      loading: "Optimizing schedule planner...",
+      success: () => {
+        queryClient.invalidateQueries({ queryKey: ["copilot"] });
+        return "AI Schedule plan regenerated successfully! 📅";
       },
-    );
+      error: "Failed to optimize schedule.",
+    });
   };
 
   const handleQuickGoalSubmit = async (e: React.FormEvent) => {
@@ -174,16 +186,10 @@ function Dashboard() {
 
   // Safe destructuring of scores and values
   const scores = copilotSummary?.scores || {};
-  const lifeScore = scores.lifeScore ?? 0;
   const successScore = scores.successScore ?? 0;
   const successLabel = scores.successLabel ?? "Needs Focus";
   const habitConsistency = scores.habitConsistency ?? 0;
   const consistencyBadge = scores.consistencyBadge ?? "Average";
-  const currentStreak = scores.currentStreak ?? 0;
-  const lifeScoreTrend = scores.lifeScoreTrend ?? "New Account";
-
-  const xp = scores.xp ?? 0;
-  const level = scores.level ?? 1;
 
   const todayFocus = copilotSummary?.briefing?.todayFocus ?? "Create high-priority tasks to begin!";
   const nextBestAction = copilotSummary?.briefing?.nextBestAction ?? "Schedule a Focus Sprint";
@@ -194,6 +200,10 @@ function Dashboard() {
     plannerMissing: false,
   };
   const activeGoals = copilotSummary?.goals || [];
+  const avgGoalProgress = activeGoals.length > 0
+    ? Math.round(activeGoals.reduce((sum: number, g: any) => sum + (g.progress || 0), 0) / activeGoals.length)
+    : 0;
+
   const focusStats = copilotSummary?.focusStats || {
     todayFocusHours: 0,
     weeklyFocusHours: 0,
@@ -236,28 +246,17 @@ function Dashboard() {
                 : "No focus blocks scheduled for today. Generate an optimized plan to command your workflow!"}
             </p>
           </div>
-
-          {/* Level Badge cockpit */}
-          <div className="flex items-center gap-3 bg-card/65 backdrop-blur border border-border/60 rounded-2xl p-4 shadow-soft">
-            <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-primary to-[oklch(0.75_0.13_220)] text-base font-bold text-white shadow-soft">
-              Lvl {level}
-            </div>
-            <div>
-              <div className="text-xs font-bold text-foreground">Outcomes Level</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">{xp} XP accumulated</div>
-            </div>
-          </div>
         </div>
       </motion.section>
 
-      {/* 2. Unified Life Score circular progress row */}
+      {/* 2. Unified circular progress row */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
           {
-            label: "AI Life Score",
-            value: `${lifeScore}`,
-            detail: lifeScoreTrend,
-            pct: lifeScore,
+            label: "Goal Progress",
+            value: `${avgGoalProgress}%`,
+            detail: `${activeGoals.length} Active Goals`,
+            pct: avgGoalProgress,
             color: "lavender",
           },
           {
@@ -432,73 +431,21 @@ function Dashboard() {
                 <Sparkles className="h-4 w-4 text-primary animate-pulse" /> AI Daily Briefing
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                    <Brain className="h-3.5 w-3.5 text-primary" /> Today's Focus
-                  </div>
-                  <div className="mt-1.5 rounded-2xl bg-secondary/40 border border-border/40 p-3">
-                    <p className="text-xs font-bold text-foreground leading-snug">{todayFocus}</p>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-secondary/40 border border-border/40 p-4 space-y-1 text-left">
+                <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
+                  <Brain className="h-3.5 w-3.5 text-primary" /> Today's Focus
                 </div>
-
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                    <Activity className="h-3.5 w-3.5 text-indigo-500" /> Recommended Action
-                  </div>
-                  <div className="mt-1.5 rounded-2xl bg-indigo-500/5 border border-indigo-500/10 p-3">
-                    <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 leading-snug">
-                      {nextBestAction}
-                    </p>
-                  </div>
-                </div>
+                <p className="text-xs font-bold text-foreground leading-snug">{todayFocus}</p>
               </div>
 
-              {/* Real-time Diagnostics Warning panel */}
-              <div className="space-y-3.5">
+              <div className="rounded-2xl bg-indigo-500/5 border border-indigo-500/10 p-4 space-y-1 text-left">
                 <div className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert className="h-3.5 w-3.5 text-primary" /> Warnings Engine
+                  <Activity className="h-3.5 w-3.5 text-indigo-500" /> Recommended Action
                 </div>
-
-                <div className="space-y-2">
-                  {!hasWarnings ? (
-                    <div className="flex items-center gap-2.5 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 p-3">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                        All OS modules optimized!
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      {warnings.overdueCount > 0 && (
-                        <div className="flex items-center gap-2.5 rounded-2xl bg-red-500/5 border border-red-500/10 p-2.5">
-                          <AlertTriangle className="h-4.5 w-4.5 text-red-500 shrink-0" />
-                          <span className="text-[10px] font-bold text-red-500">
-                            ⚠️ {warnings.overdueCount} overdue tasks dropping score
-                          </span>
-                        </div>
-                      )}
-                      {warnings.habitRisk && (
-                        <div className="flex items-center gap-2.5 rounded-2xl bg-yellow-500/5 border border-yellow-500/10 p-2.5">
-                          <AlertTriangle className="h-4.5 w-4.5 text-yellow-500 shrink-0" />
-                          <span className="text-[10px] font-bold text-yellow-600 dark:text-yellow-400">
-                            ⚠️ Habit consistency dropped average
-                          </span>
-                        </div>
-                      )}
-                      {warnings.plannerMissing && (
-                        <div className="flex items-center gap-2.5 rounded-2xl bg-blue-500/5 border border-blue-500/10 p-2.5">
-                          <AlertTriangle className="h-4.5 w-4.5 text-blue-500 shrink-0" />
-                          <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
-                            ⚠️ Generate planner schedule for today
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 leading-snug">
+                  {nextBestAction}
+                </p>
               </div>
             </div>
           </div>
@@ -516,13 +463,12 @@ function Dashboard() {
 
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={handleRegenerate}
-                disabled={isGenerating}
+                onClick={() => window.dispatchEvent(new CustomEvent("open-task-modal"))}
                 className="rounded-2xl border border-border bg-card p-3 text-center transition-all hover:border-primary/30 hover:shadow-float cursor-pointer flex flex-col items-center gap-1.5"
               >
-                <Calendar className="h-5 w-5 text-primary animate-pulse" />
+                <ClipboardCheck className="h-5 w-5 text-primary" />
                 <span className="text-[9px] font-bold uppercase text-foreground/80 mt-1">
-                  Generate Plan
+                  Add Task
                 </span>
               </button>
 
@@ -679,6 +625,269 @@ function Dashboard() {
             </div>
           </div>
 
+          {/* FEATURE — CALENDAR & EVENTS SIDEBAR WIDGET */}
+          <div className={cardClass}>
+            <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-violet-500 flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-violet-500" /> Calendar & Events
+              </h2>
+              <button
+                onClick={() => {
+                  setEditingEventId(null);
+                  setEventTitle("");
+                  setEventDesc("");
+                  setEventTime("10:00");
+                  setEventCategory("Meeting");
+                  setEventModalOpen(true);
+                }}
+                className="text-[9px] font-bold text-muted-foreground hover:text-violet-500 transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add Event
+              </button>
+            </div>
+
+            {/* Monthly Calendar View */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold px-1">
+                <span>
+                  {calendarDate.toLocaleString("default", { month: "long" })}{" "}
+                  {calendarDate.getFullYear()}
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() =>
+                      setCalendarDate(
+                        new Date(calendarDate.getFullYear(), calendarDate.getMonth() - 1, 1),
+                      )
+                    }
+                    className="p-1 hover:bg-secondary rounded-lg cursor-pointer"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCalendarDate(
+                        new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 1),
+                      )
+                    }
+                    className="p-1 hover:bg-secondary rounded-lg cursor-pointer"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Day Labels */}
+              <div className="grid grid-cols-7 text-center text-[9px] font-bold text-muted-foreground">
+                {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                  <div key={i}>{d}</div>
+                ))}
+              </div>
+
+              {/* Date Cells Grid */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-mono">
+                {(() => {
+                  const year = calendarDate.getFullYear();
+                  const month = calendarDate.getMonth();
+                  const firstDayIndex = new Date(year, month, 1).getDay();
+                  const adjustedStartDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+                  const totalDays = new Date(year, month + 1, 0).getDate();
+                  const prevMonthDays = new Date(year, month, 0).getDate();
+
+                  const cells: { date: Date; isCurrent: boolean; key: string }[] = [];
+
+                  for (let i = adjustedStartDay - 1; i >= 0; i--) {
+                    const d = new Date(year, month - 1, prevMonthDays - i);
+                    cells.push({ date: d, isCurrent: false, key: `prev-${i}` });
+                  }
+                  for (let i = 1; i <= totalDays; i++) {
+                    const d = new Date(year, month, i);
+                    cells.push({ date: d, isCurrent: true, key: `curr-${i}` });
+                  }
+                  const remaining = 42 - cells.length;
+                  for (let i = 1; i <= remaining; i++) {
+                    const d = new Date(year, month + 1, i);
+                    cells.push({ date: d, isCurrent: false, key: `next-${i}` });
+                  }
+
+                  const todayStr = new Date().toISOString().split("T")[0];
+
+                  return cells.map((cell) => {
+                    const cellStr = cell.date.toISOString().split("T")[0];
+                    const isToday = cellStr === todayStr;
+                    const isSelected = cellStr === selectedDayStr;
+                    const dayEvents = events.filter((e) => e.date === cellStr);
+                    const hasEvents = dayEvents.length > 0;
+
+                    return (
+                      <button
+                        key={cell.key}
+                        type="button"
+                        onClick={() => setSelectedDayStr(cellStr)}
+                        className={cn(
+                          "h-6 w-full rounded-lg flex flex-col items-center justify-center relative cursor-pointer font-bold",
+                          !cell.isCurrent && "text-muted-foreground/40",
+                          isSelected
+                            ? "bg-violet-500 text-white shadow-soft"
+                            : isToday
+                              ? "bg-violet-500/10 border border-violet-500/35 text-violet-600 dark:text-violet-400"
+                              : "hover:bg-secondary",
+                        )}
+                      >
+                        <span>{cell.date.getDate()}</span>
+                        {hasEvents && (
+                          <span
+                            className={cn(
+                              "absolute bottom-0.5 h-1 w-1 rounded-full",
+                              isSelected ? "bg-white" : "bg-violet-500",
+                            )}
+                          />
+                        )}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Selected date events list */}
+              {(() => {
+                const dayEvents = events.filter((e) => e.date === selectedDayStr);
+                return (
+                  <div className="bg-secondary/20 rounded-2xl p-2.5 border border-border/30 text-[10px] space-y-2 mt-2">
+                    <div className="flex items-center justify-between font-bold">
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                        Events: {selectedDayStr}
+                      </span>
+                      {dayEvents.length > 0 && (
+                        <span className="rounded-full bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 text-[8px] font-bold text-violet-600 dark:text-violet-400">
+                          {dayEvents.length} scheduled
+                        </span>
+                      )}
+                    </div>
+
+                    {dayEvents.length === 0 ? (
+                      <p className="text-muted-foreground italic text-center py-2 text-[9px]">
+                        No events planned for this date.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                        {dayEvents.map((ev) => (
+                          <div
+                            key={ev.id}
+                            className="bg-card border border-border/40 rounded-xl p-2 flex flex-col gap-1 hover:border-violet-500/20 transition-all"
+                          >
+                            <div className="flex items-start justify-between gap-1.5">
+                              <span className="font-bold text-foreground truncate">{ev.title}</span>
+                              <div className="flex gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingEventId(ev.id);
+                                    setEventTitle(ev.title);
+                                    setEventDesc(ev.description || "");
+                                    setEventTime(ev.time);
+                                    setEventCategory(ev.category);
+                                    setEventModalOpen(true);
+                                  }}
+                                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    deleteEvent(ev.id);
+                                    toast.success("Event deleted!");
+                                  }}
+                                  className="text-muted-foreground hover:text-red-500 cursor-pointer"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                            {ev.description && (
+                              <p className="text-[9px] text-muted-foreground line-clamp-1">
+                                {ev.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between text-[8px] text-muted-foreground font-semibold">
+                              <span className="flex items-center gap-0.5 font-mono">
+                                <Clock className="h-2.5 w-2.5 text-muted-foreground/60" /> {ev.time}
+                              </span>
+                              <span className="rounded-full bg-secondary px-1.5 py-0.5 tracking-wide text-foreground/80">
+                                {ev.category}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Upcoming Events Section (Below Month View inside same card) */}
+              <div className="border-t border-border/40 pt-3 mt-3 space-y-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Upcoming Events
+                </div>
+
+                {(() => {
+                  const todayStr = new Date().toISOString().split("T")[0];
+                  const upcoming = events
+                    .filter((e) => e.date >= todayStr)
+                    .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+                    .slice(0, 3);
+
+                  const formatLabel = (dateStr: string) => {
+                    const todayVal = new Date().toISOString().split("T")[0];
+                    const tomDate = new Date();
+                    tomDate.setDate(tomDate.getDate() + 1);
+                    const tomorrowVal = tomDate.toISOString().split("T")[0];
+
+                    if (dateStr === todayVal) return "Today";
+                    if (dateStr === tomorrowVal) return "Tomorrow";
+
+                    return new Date(dateStr).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                    });
+                  };
+
+                  if (upcoming.length === 0) {
+                    return (
+                      <p className="text-[9px] text-muted-foreground italic text-center py-1">
+                        No upcoming events.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2">
+                      {upcoming.map((ev) => (
+                        <div key={ev.id} className="flex items-start gap-2 text-xs">
+                          <Pin className="h-3.5 w-3.5 text-violet-500 shrink-0 mt-0.5 rotate-45" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-foreground truncate">{ev.title}</div>
+                            <div className="text-[9px] text-muted-foreground font-semibold flex items-center gap-1 mt-0.5">
+                              <span>{formatLabel(ev.date)}</span>
+                              <span>•</span>
+                              <span className="font-mono">{ev.time}</span>
+                              <span className="rounded bg-violet-500/5 px-1 py-0.25 text-[8px] font-bold text-violet-600 dark:text-violet-400">
+                                {ev.category}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
           {/* Integrated Habits Widget Cockpit with Create Habit Modal form */}
           <div className={cardClass}>
             <div className="flex items-center justify-between border-b border-border/40 pb-2.5 mb-3.5">
@@ -805,6 +1014,144 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      {/* Event Add/Edit Modal */}
+      <AnimatePresence>
+        {eventModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="glass max-w-sm w-full rounded-3xl p-6 shadow-float border border-border/60 space-y-4 text-xs"
+            >
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <h3 className="font-display text-lg font-bold">
+                  {editingEventId ? "Edit Calendar Event" : "Add Calendar Event"}
+                </h3>
+                <button
+                  onClick={() => setEventModalOpen(false)}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!eventTitle.trim()) {
+                    toast.error("Event title is required");
+                    return;
+                  }
+                  if (editingEventId) {
+                    updateEvent(editingEventId, {
+                      title: eventTitle.trim(),
+                      description: eventDesc.trim() || undefined,
+                      date: selectedDayStr,
+                      time: eventTime,
+                      category: eventCategory,
+                    });
+                    toast.success("Event updated!");
+                  } else {
+                    addEvent({
+                      title: eventTitle.trim(),
+                      description: eventDesc.trim() || undefined,
+                      date: selectedDayStr,
+                      time: eventTime,
+                      category: eventCategory,
+                    });
+                    toast.success("Event added!");
+                  }
+                  setEventModalOpen(false);
+                }}
+                className="space-y-3.5"
+              >
+                <label className="block">
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Event Title</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Midterm Exam"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-[10px] text-muted-foreground">
+                    Description (Optional)
+                  </span>
+                  <textarea
+                    placeholder="Provide meeting notes, links, etc."
+                    value={eventDesc}
+                    onChange={(e) => setEventDesc(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none h-16 resize-none"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">
+                      Time (HH:MM)
+                    </span>
+                    <input
+                      type="time"
+                      required
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none font-mono"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Category</span>
+                    <select
+                      value={eventCategory}
+                      onChange={(e) => setEventCategory(e.target.value as any)}
+                      className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none cursor-pointer"
+                    >
+                      <option value="Meeting">Meeting 💼</option>
+                      <option value="Exam">Exam 📝</option>
+                      <option value="Interview">Interview 🤝</option>
+                      <option value="Deadline">Deadline 🚨</option>
+                      <option value="Personal">Personal 🌿</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label className="block">
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Target Date</span>
+                  <input
+                    type="date"
+                    required
+                    value={selectedDayStr}
+                    onChange={(e) => setSelectedDayStr(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-white dark:bg-zinc-900/60 px-3 py-2 text-xs outline-none font-mono"
+                  />
+                </label>
+
+                <div className="flex gap-2 justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEventModalOpen(false)}
+                    className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-foreground text-background px-4 py-2 text-xs font-bold cursor-pointer hover:opacity-90"
+                  >
+                    {editingEventId ? "Save Changes" : "Create Event"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

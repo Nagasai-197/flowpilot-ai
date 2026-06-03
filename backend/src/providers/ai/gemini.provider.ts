@@ -114,43 +114,27 @@ Your ONLY job is to build a highly productive, deep-work-optimized single-day sc
 Date: ${request.dateStr}. Working Hours: ${request.workingHoursStart} to ${request.workingHoursEnd}.
 Preferred Deep Work Duration: ${deepWorkMin} minutes. Preferred Break Duration: ${breakMin} minutes.
 
-HIGH PRIORITY TASKS (schedule FIRST, in ${deepWorkMin} min deep work blocks during morning peak):
-${JSON.stringify(
-  request.tasks.filter((t: any) => t.priority === "high"),
-  null,
-  2,
-)}
+CALENDAR EVENTS & CONFLICTS TO AVOID (DO NOT schedule focus blocks or habits during these times. Map these events directly into the output schedule as 'meeting' type blocks with the event title if they occur during the workday. Color them 'sky'):
+${JSON.stringify((request as any).events || [], null, 2)}
 
-MEDIUM PRIORITY TASKS (schedule after high-priority blocks):
-${JSON.stringify(
-  request.tasks.filter((t: any) => t.priority === "med" || t.priority === "medium"),
-  null,
-  2,
-)}
-
-LOW PRIORITY TASKS (fill remaining slots):
-${JSON.stringify(
-  request.tasks.filter((t: any) => t.priority === "low"),
-  null,
-  2,
-)}
+ACTIVE TASKS FOR TODAY (Sorted in descending order of calculated Urgency Score. Prioritize scheduling higher scoring tasks first):
+${JSON.stringify(request.tasks, null, 2)}
 
 HABITS TO SLOT (morning/evening routine slots):
 ${JSON.stringify(request.habits, null, 2)}
 
 MANDATORY SCHEDULING RULES:
-1. HIGH PRIORITY tasks → schedule strictly in ${deepWorkMin} min focus blocks. MUST go in morning peak hours (first 3 hours of the workday/available time window).
-2. MEDIUM priority tasks → schedule in ${Math.round(deepWorkMin * 0.67)} to ${deepWorkMin} min blocks. Afternoon slots.
-3. LOW priority tasks → schedule in ${Math.round(deepWorkMin * 0.33)} to ${Math.round(deepWorkMin * 0.67)} min blocks. Late afternoon.
-4. MANDATORY: Insert a ${breakMin}-min "break" block after EVERY focus block.
-5. Morning warm-up: Add a ${breakMin}-min "Warm-up & Planning" break block at the very start of the workday/available time window.
-6. Afternoon reset: Add a ${breakMin}-min "Afternoon Reset" break block after lunch (≈ 1:00 PM, or if available time start is after 1:00 PM, insert a break after the first focus segment).
-7. Habits in their natural slots: morning routines at day start, evening habits near day end.
-8. NEVER schedule two focus blocks back-to-back without a break. Prevents cognitive burnout.
-9. Minimize context switching: group related tasks (same tag/domain) consecutively.
-10. All timestamps MUST be ISO 8601 with date: ${request.dateStr} and timezone offset: ${offset}. Format: ${request.dateStr}T09:00:00.000${offset}
-11. Valid block types: 'focus', 'break', 'meeting', 'habit'. Use 'break' for warm-ups and resets.
-12. Valid colors: 'lavender' (focus/high), 'mint' (habits/health), 'sky' (meetings), 'peach' (breaks/low).
+1. HIGHER URGENCY tasks → schedule first, in ${deepWorkMin} min focus blocks. Place highest urgency tasks during peak focus windows.
+2. Insert a ${breakMin}-min "break" block after EVERY focus block.
+3. Warm-up block: Add a ${breakMin}-min "Warm-up & Planning" break block at the very start of the workday/available time window.
+4. Afternoon reset: Add a ${breakMin}-min "Afternoon Reset" break block after lunch (≈ 1:00 PM, or if available time start is after 1:00 PM, insert a break after the first focus segment).
+5. Habits in their natural slots: morning routines at day start, evening habits near day end.
+6. NEVER schedule focus blocks or habits during the CALENDAR EVENTS specified above. Calendar events must be mapped as 'meeting' blocks.
+7. NEVER schedule two focus blocks back-to-back without a break. Prevents cognitive burnout.
+8. Minimize context switching: group related tasks (same tag/domain) consecutively.
+9. All timestamps MUST be ISO 8601 with date: ${request.dateStr} and timezone offset: ${offset}. Format: ${request.dateStr}T09:00:00.000${offset}
+10. Valid block types: 'focus', 'break', 'meeting', 'habit'. Use 'break' for warm-ups and resets.
+11. Valid colors: 'lavender' (focus/high), 'mint' (habits/health), 'sky' (meetings), 'peach' (breaks/low).
 
 Return ONLY valid JSON. No markdown fences.
 Schema:
@@ -228,6 +212,7 @@ Habits Summary: ${request.context.habitsSummary}
 Today's Schedule: ${request.context.scheduleSummary}
 Performance Stats: ${request.context.analyticsSummary}
 Active Goals: ${(request.context as any).goalsSummary || "No goals set yet."}
+Focus Stats: ${(request.context as any).focusSummary || "No focus sessions logged yet."}
 Working Hours: ${request.context.workingHours}
 
 === BEHAVIOR RULES (STRICTLY FOLLOW) ===
@@ -238,6 +223,17 @@ Working Hours: ${request.context.workingHours}
 5. ONLY ASK FOLLOW-UPS when critical info is truly missing (e.g., a specific meeting time, a preference not in data).
 6. CONCISE & ACTIONABLE: Use Markdown bullets and bold. Keep replies under 300 words unless a full briefing is requested.
 7. ACTION DETECTION: Detect if the user wants to create/modify tasks, habits, or goals and set the action field accordingly.
+
+=== SCHEDULE OPTIMIZATION RULES ===
+If the user asks to "optimize my schedule", "re-balance my day", "optimize schedule", or similar:
+- DO NOT say "No events found" or "No schedule blocks found".
+- Always analyze all user live data (Goals, Goal Progress, Tasks, Due Dates, Overdue Tasks, Habits, Focus Sessions, Planner Data).
+- You MUST structure your response with exactly these four markdown headings:
+### Current Status
+### Problems Identified
+### Recommendations
+### Suggested Schedule
+- Ground your response completely in the user's actual tasks, goals, habits, focus stats, and planner data. Avoid generic advice.
 
 === ACTION RULES ===
 - User wants to create a task → action type: "create_task", payload: {title, priority: "high|med|low", tag, color: "lavender|mint|sky|peach", status: "todo|doing|review|done"}
