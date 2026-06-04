@@ -10,7 +10,7 @@ export interface Habit {
   days: number[]; // 7-day checklist array containing 1s and 0s
 }
 
-export function useHabits() {
+export function useHabits({ enabled = true }: { enabled?: boolean } = {}) {
   const queryClient = useQueryClient();
   const localDate = new Date().toLocaleDateString("en-CA");
 
@@ -18,6 +18,7 @@ export function useHabits() {
   const habitsQuery = useQuery<{ status: string; data: { habits: Habit[] } }>({
     queryKey: ["habits", localDate],
     queryFn: () => api.get(`/habits?localDate=${localDate}`),
+    enabled,
   });
 
   const habits = habitsQuery.data?.data?.habits || [];

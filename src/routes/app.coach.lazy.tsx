@@ -13,7 +13,7 @@ import {
   Check,
   X,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, memo } from "react";
 import { useAssistant } from "../hooks/useAssistant";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -106,11 +106,105 @@ function renderMarkdown(text: string) {
   return <div className="space-y-0.5">{elements}</div>;
 }
 
+const ChatMessageItem = memo(function ChatMessageItem({
+  msg,
+  idx,
+  cancelAction,
+  confirmAction,
+}: {
+  msg: any;
+  idx: number;
+  cancelAction: (idx: number) => void;
+  confirmAction: (idx: number, action: any) => void;
+}) {
+  const isAi = msg.role === "ai";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "flex gap-3 max-w-[85%] sm:max-w-[75%]",
+        isAi ? "mr-auto" : "ml-auto flex-row-reverse",
+      )}
+    >
+      {isAi && (
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
+          <Bot className="h-4 w-4" />
+        </div>
+      )}
+      <div className="space-y-3">
+        <div
+          className={cn(
+            "rounded-2xl p-4 text-xs leading-relaxed shadow-soft border",
+            isAi
+              ? "bg-card border-border/60 text-foreground"
+              : "bg-primary text-primary-foreground border-transparent",
+          )}
+        >
+          {isAi ? renderMarkdown(msg.text) : <p className="font-medium">{msg.text}</p>}
+        </div>
+
+        {/* Interactive Action Confirmations */}
+        {isAi && msg.action && msg.action.type !== "none" && (
+          <div className="rounded-2xl border border-border/80 bg-secondary/35 p-3 space-y-2 max-w-sm">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+              <Target className="h-3.5 w-3.5" /> Action Recommended
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-normal capitalize">
+              Type: {msg.action.type.replace("_", " ")} · Title:{" "}
+              {msg.action.payload?.title || msg.action.payload?.name || "Target block"}
+            </p>
+
+            {msg.actionExecuted === "confirmed" ? (
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-green-600">
+                <Check className="h-3.5 w-3.5" /> Action confirmed and synced!
+              </div>
+            ) : msg.actionExecuted === "cancelled" ? (
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                <X className="h-3.5 w-3.5" /> Action skipped.
+              </div>
+            ) : (
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => cancelAction(idx)}
+                  className="rounded-full border border-border bg-card px-3 py-1.5 text-[9px] font-bold text-muted-foreground hover:bg-secondary cursor-pointer"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => confirmAction(idx, msg.action!)}
+                  className="rounded-full bg-primary px-3 py-1.5 text-[9px] font-bold text-primary-foreground hover:opacity-90 cursor-pointer"
+                >
+                  Confirm Action
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.msg.text === nextProps.msg.text &&
+    prevProps.msg.role === nextProps.msg.role &&
+    prevProps.msg.actionExecuted === nextProps.msg.actionExecuted &&
+    prevProps.msg.action === nextProps.msg.action
+  );
+});
+
 function AICoachPage() {
   const { messages, sendMessage, confirmAction, cancelAction, isPending, clearHistory } =
     useAssistant();
   const [inputText, setInputText] = useState("");
+  const [messagesLimit, setMessagesLimit] = useState(15);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const hasOlderMessages = messages.length > messagesLimit;
+  const visibleMessages = useMemo(() => messages.slice(-messagesLimit), [messages, messagesLimit]);
+  const loadOlder = () => {
+    setMessagesLimit((prev) => prev + 15);
+  };
 
   // Fetch metrics context for the sidebar diagnostics
   const { data: copilotSummary } = useQuery<any>({
@@ -189,74 +283,27 @@ function AICoachPage() {
         {/* Chat Messages Feed */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
           <AnimatePresence initial={false}>
-            {messages.map((msg, idx) => {
-              const isAi = msg.role === "ai";
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "flex gap-3 max-w-[85%] sm:max-w-[75%]",
-                    isAi ? "mr-auto" : "ml-auto flex-row-reverse",
-                  )}
+            {hasOlderMessages && (
+              <div className="flex justify-center pb-2">
+                <button
+                  type="button"
+                  onClick={loadOlder}
+                  className="rounded-full border border-border bg-card/65 px-4.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-card shadow-soft transition-all cursor-pointer"
                 >
-                  {isAi && (
-                    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-secondary text-primary">
-                      <Bot className="h-4 w-4" />
-                    </div>
-                  )}
-                  <div className="space-y-3">
-                    <div
-                      className={cn(
-                        "rounded-2xl p-4 text-xs leading-relaxed shadow-soft border",
-                        isAi
-                          ? "bg-card border-border/60 text-foreground"
-                          : "bg-primary text-primary-foreground border-transparent",
-                      )}
-                    >
-                      {isAi ? renderMarkdown(msg.text) : <p className="font-medium">{msg.text}</p>}
-                    </div>
-
-                    {/* Interactive Action Confirmations */}
-                    {isAi && msg.action && msg.action.type !== "none" && (
-                      <div className="rounded-2xl border border-border/80 bg-secondary/35 p-3 space-y-2 max-w-sm">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                          <Target className="h-3.5 w-3.5" /> Action Recommended
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-normal capitalize">
-                          Type: {msg.action.type.replace("_", " ")} · Title:{" "}
-                          {msg.action.payload?.title || msg.action.payload?.name || "Target block"}
-                        </p>
-
-                        {msg.actionExecuted === "confirmed" ? (
-                          <div className="flex items-center gap-1 text-[10px] font-semibold text-green-600">
-                            <Check className="h-3.5 w-3.5" /> Action confirmed and synced!
-                          </div>
-                        ) : msg.actionExecuted === "cancelled" ? (
-                          <div className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-                            <X className="h-3.5 w-3.5" /> Action skipped.
-                          </div>
-                        ) : (
-                          <div className="flex gap-2 pt-1">
-                            <button
-                              onClick={() => cancelAction(idx)}
-                              className="rounded-full border border-border bg-card px-3 py-1.5 text-[9px] font-bold text-muted-foreground hover:bg-secondary cursor-pointer"
-                            >
-                              Skip
-                            </button>
-                            <button
-                              onClick={() => confirmAction(idx, msg.action!)}
-                              className="rounded-full bg-primary px-3 py-1.5 text-[9px] font-bold text-primary-foreground hover:opacity-90 cursor-pointer"
-                            >
-                              Confirm Action
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
+                  Load Older Reflections ({messages.length - messagesLimit} remaining)
+                </button>
+              </div>
+            )}
+            {visibleMessages.map((msg, idx) => {
+              const actualIdx = messages.length - visibleMessages.length + idx;
+              return (
+                <ChatMessageItem
+                  key={actualIdx}
+                  msg={msg}
+                  idx={actualIdx}
+                  cancelAction={cancelAction}
+                  confirmAction={confirmAction}
+                />
               );
             })}
 

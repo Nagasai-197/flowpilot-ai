@@ -12,7 +12,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { usePlanner, ScheduleBlock } from "../hooks/usePlanner";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -77,6 +77,17 @@ const getDuration = (startIso: string, endIso: string) => {
   }
 };
 
+const getHHMM = (isoString: string) => {
+  try {
+    const date = new Date(isoString);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  } catch {
+    return "09:00";
+  }
+};
+
 interface SortableBlockItemProps {
   b: ScheduleBlock;
   i: number;
@@ -87,7 +98,7 @@ interface SortableBlockItemProps {
   isRegenerating: boolean;
 }
 
-function SortableBlockItem({
+const SortableBlockItem = memo(function SortableBlockItem({
   b,
   i,
   isCompleted,
@@ -229,7 +240,7 @@ function SortableBlockItem({
       </div>
     </div>
   );
-}
+});
 
 function Planner() {
   const todayObj = new Date();
@@ -255,11 +266,11 @@ function Planner() {
     localStorage.setItem(`completed_blocks_${selectedDate}`, JSON.stringify(completedBlockIds));
   }, [completedBlockIds, selectedDate]);
 
-  const handleToggleComplete = (id: string) => {
+  const handleToggleComplete = useCallback((id: string) => {
     setCompletedBlockIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
-  };
+  }, []);
 
   // Custom states for single-block AI optimization
   const [rationaleData, setRationaleData] = useState<{ title: string; rationale: string } | null>(
@@ -312,17 +323,6 @@ function Planner() {
     const hh = timeParts[0].padStart(2, "0");
     const mm = (timeParts[1] || "00").padStart(2, "0");
     return `${dateStr}T${hh}:${mm}:00${offset}`;
-  };
-
-  const getHHMM = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    } catch {
-      return "09:00";
-    }
   };
 
   // Sensors for sortable lists
@@ -386,7 +386,7 @@ function Planner() {
     );
   };
 
-  const openEditModal = (block: ScheduleBlock) => {
+  const openEditModal = useCallback((block: ScheduleBlock) => {
     setEditingBlock(block);
     setFormTitle(block.label);
     setFormType(block.type as any);
@@ -394,7 +394,7 @@ function Planner() {
     setFormStart(getHHMM(block.start_time));
     setFormEnd(getHHMM(block.end_time));
     setModalOpen(true);
-  };
+  }, []);
 
   const openCreateModal = () => {
     setEditingBlock(null);
@@ -455,7 +455,7 @@ function Planner() {
     }
   };
 
-  const handleRegenerateBlock = async (id: string) => {
+  const handleRegenerateBlock = useCallback(async (id: string) => {
     setActiveRegeneratingId(id);
     const runRegen = async () => {
       try {
@@ -475,7 +475,7 @@ function Planner() {
       success: "Cognitive focus block balanced successfully! 🧠",
       error: "AI optimization failed.",
     });
-  };
+  }, [regenerateBlock]);
 
   // Memoized statistics and energy calculations to prevent long main-thread tasks
   const {

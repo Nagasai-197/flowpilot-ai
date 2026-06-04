@@ -21,10 +21,11 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { cn } from "@/lib/utils";
 import { useTasks, Task } from "../hooks/useTasks";
 import { useGoals } from "../hooks/useGoals";
+import { useIsMobile } from "../hooks/use-mobile";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import {
@@ -54,6 +55,8 @@ export const Route = createLazyFileRoute("/app/tasks")({
 
 function Tasks() {
   const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
+  const [activeColumnTab, setActiveColumnTab] = useState<string>("todo");
+  const isMobile = useIsMobile();
 
   // Accordion expanded states for due-date sections
   const [isOverdueExpanded, setIsOverdueExpanded] = useState(true);
@@ -131,9 +134,9 @@ function Tasks() {
 
   // DnD Sensors config (optimally balanced for desktop click vs drag & touch screens)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(PointerSensor, useMemo(() => ({ activationConstraint: { distance: 8 } }), [])),
+    useSensor(TouchSensor, useMemo(() => ({ activationConstraint: { delay: 250, tolerance: 6 } }), [])),
+    useSensor(KeyboardSensor, useMemo(() => ({ coordinateGetter: sortableKeyboardCoordinates }), [])),
   );
 
   const openCreate = (status: Task["status"]) => {
@@ -149,7 +152,7 @@ function Tasks() {
     setIsModalOpen(true);
   };
 
-  const openEdit = (t: Task) => {
+  const openEdit = useCallback((t: Task) => {
     setEditTask(t);
     setEditTitle(t.title);
     setEditTag(t.tag || "");
@@ -183,7 +186,7 @@ function Tasks() {
       setEditGoalId("");
       setEditMilestoneId("");
     }
-  };
+  }, [goals]);
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,7 +273,7 @@ function Tasks() {
 
   const BREAKDOWN_STORAGE_KEY = (taskId: string) => `fp_breakdown_${taskId}`;
 
-  const handleOpenBreakdown = async (t: Task) => {
+  const handleOpenBreakdown = useCallback(async (t: Task) => {
     setActiveBreakdownTask(t);
     setEditingSubtaskIdx(null);
     setIsSaved(false);
@@ -320,7 +323,7 @@ function Tasks() {
     } finally {
       setIsBreakdownLoading(false);
     }
-  };
+  }, []);
 
   const handleSaveBreakdown = () => {
     if (!activeBreakdownTask) return;
@@ -786,38 +789,61 @@ function Tasks() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {columns.map((col) => (
-              <DroppableColumn
-                key={col.id}
-                id={col.id}
-                title={col.title}
-                count={col.tasks.length}
-                onPlusClick={() => openCreate(col.id as Task["status"])}
-              >
-                <SortableContext
-                  items={col.tasks.map((t) => t.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {col.tasks.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/40 text-center text-xs text-muted-foreground p-8 min-h-[120px] transition-colors group-hover:border-primary/30">
-                      No tasks here — drop to move!
-                    </div>
-                  ) : (
-                    col.tasks.map((t, idx) => (
-                      <SortableTaskCard
-                        key={t.id}
-                        t={t}
-                        idx={idx}
-                        openEdit={openEdit}
-                        deleteTask={deleteTask}
-                        onBreakdownClick={handleOpenBreakdown}
-                      />
-                    ))
+          {/* Mobile column selection tabs */}
+          {isMobile && (
+            <div className="flex rounded-xl bg-secondary/60 p-1 border border-border/40 mb-4 shadow-soft">
+              {columns.map((col) => (
+                <button
+                  key={col.id}
+                  type="button"
+                  onClick={() => setActiveColumnTab(col.id)}
+                  className={cn(
+                    "flex-1 rounded-lg py-2 text-xs font-semibold cursor-pointer transition-all text-center",
+                    activeColumnTab === col.id
+                      ? "bg-background text-foreground shadow-soft border border-border/40"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
-                </SortableContext>
-              </DroppableColumn>
-            ))}
+                >
+                  {col.title} ({col.tasks.length})
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {columns
+              .filter((col) => !isMobile || activeColumnTab === col.id)
+              .map((col) => (
+                <DroppableColumn
+                  key={col.id}
+                  id={col.id}
+                  title={col.title}
+                  count={col.tasks.length}
+                  onPlusClick={() => openCreate(col.id as Task["status"])}
+                >
+                  <SortableContext
+                    items={col.tasks.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {col.tasks.length === 0 ? (
+                      <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/40 text-center text-xs text-muted-foreground p-8 min-h-[120px] transition-colors group-hover:border-primary/30">
+                        No tasks here — drop to move!
+                      </div>
+                    ) : (
+                      col.tasks.map((t, idx) => (
+                        <SortableTaskCard
+                          key={t.id}
+                          t={t}
+                          idx={idx}
+                          openEdit={openEdit}
+                          deleteTask={deleteTask}
+                          onBreakdownClick={handleOpenBreakdown}
+                        />
+                      ))
+                    )}
+                  </SortableContext>
+                </DroppableColumn>
+              ))}
           </div>
 
           <DragOverlay>
@@ -1579,7 +1605,7 @@ function DroppableColumn({
 }
 
 // Draggable Sortable Task Card Component
-function SortableTaskCard({
+const SortableTaskCard = memo(function SortableTaskCard({
   t,
   idx,
   openEdit,
@@ -1705,4 +1731,17 @@ function SortableTaskCard({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.t.id === nextProps.t.id &&
+    prevProps.t.title === nextProps.t.title &&
+    prevProps.t.description === nextProps.t.description &&
+    prevProps.t.status === nextProps.t.status &&
+    prevProps.t.priority === nextProps.t.priority &&
+    prevProps.t.color === nextProps.t.color &&
+    prevProps.t.due_date === nextProps.t.due_date &&
+    prevProps.t.tag === nextProps.t.tag &&
+    prevProps.idx === nextProps.idx &&
+    prevProps.isOverlay === nextProps.isOverlay
+  );
+});

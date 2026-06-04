@@ -25,13 +25,14 @@ export interface Goal {
   milestones?: Milestone[];
 }
 
-export function useGoals() {
+export function useGoals({ enabled = true }: { enabled?: boolean } = {}) {
   const queryClient = useQueryClient();
 
   // 1. Fetch all goals
   const goalsQuery = useQuery<{ status: string; data: { goals: Goal[] } }>({
     queryKey: ["goals"],
     queryFn: () => api.get("/goals"),
+    enabled,
     retry: 1, // Fail fast on error instead of retrying indefinitely, ensuring quick error UI presentation
   });
 

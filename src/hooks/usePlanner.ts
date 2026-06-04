@@ -15,7 +15,7 @@ export interface AIPlanResponse {
   recommendations: string[];
 }
 
-export function usePlanner(targetDate?: string) {
+export function usePlanner(targetDate?: string, { enabled = true }: { enabled?: boolean } = {}) {
   const queryClient = useQueryClient();
   const dateStr = targetDate || new Date().toISOString().split("T")[0];
 
@@ -23,6 +23,7 @@ export function usePlanner(targetDate?: string) {
   const currentPlanQuery = useQuery<{ status: string; data: AIPlanResponse }>({
     queryKey: ["planner", dateStr],
     queryFn: () => api.get(`/planner/current?date=${dateStr}`),
+    enabled,
   });
 
   const plan = currentPlanQuery.data?.data;
