@@ -9,7 +9,6 @@
 [![Tailwind Version](https://img.shields.io/badge/TailwindCSS-v4-06B6D4.svg?logo=tailwindcss)](https://tailwindcss.com)
 [![Supabase Version](https://img.shields.io/badge/Supabase-v2-3ECF8E.svg?logo=supabase)](https://supabase.com)
 [![Gemini Version](https://img.shields.io/badge/Gemini-2.5--Flash-orange.svg?logo=google)](https://ai.google.dev)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **An adaptive, beautiful, and intelligence-driven life co-pilot that coordinates your tasks, habits, plans, and long-term goals into one elegant, glassmorphic dashboard.**
 
