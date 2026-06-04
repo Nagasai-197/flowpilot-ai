@@ -9,7 +9,6 @@
 [![Tailwind Version](https://img.shields.io/badge/TailwindCSS-v4-06B6D4.svg?logo=tailwindcss)](https://tailwindcss.com)
 [![Supabase Version](https://img.shields.io/badge/Supabase-v2-3ECF8E.svg?logo=supabase)](https://supabase.com)
 [![Gemini Version](https://img.shields.io/badge/Gemini-2.5--Flash-orange.svg?logo=google)](https://ai.google.dev)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **An adaptive, beautiful, and intelligence-driven life co-pilot that coordinates your tasks, habits, plans, and long-term goals into one elegant, glassmorphic dashboard.**
 
@@ -235,21 +234,13 @@ If you prefer running the client and backend Express server on separate processe
 
 ---
 
-## 📤 9. Deployment Guide
 
-Refer to the complete [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) in the `/docs` directory for deployment blueprints to Vercel (serverless preset), Cloudflare Pages/Workers, Docker, and Render.
 
----
-
-## 💡 10. Project Highlights & Quality Measures
+## 💡 9. Project Highlights & Quality Measures
 
 - **In-Memory Express Gateway**: Employs a custom Request/Response adapter making standard Express routes serverless-ready. Host complete backend applications directly inside edge runtimes (e.g. Cloudflare Workers, Vercel Edge) with zero modifications.
 - **Zero-Flash Dark Theme Persistence**: Incorporates an inline script inside the root document `<head>` parsing theme storage instantly at boot time, preventing ugly "white flashes" on page refreshes.
 - **Seamless Seeding Engine**: A robust seeder is bundled. Trigger **Enable Demo Mode** on the settings or dashboard page to populate a complex visual timeline of tasks, habits, and active goals tailored for premium presentation.
 - **Offline Resilient Architecture**: The AI Assistant contains offline-ready local commands processing engines ("Start my day", "Show my goals") executing instantly in 40ms without sending a single network packet, safeguarding workflows from LLM limits or network failure.
 
----
 
-## 📄 11. License
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
